@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#e6ebf1">
+<title>CLUE Dashboard</title>
+<style>
+  :root {
+    --paper: #e6ebf1;
+    --sheet: #f7f9fb;
+    --ink: #1b2a4a;
+    --muted: #5d6b85;
+    --line: #c9d2de;
+    --x: #e4572e;
+    --y: #17a398;
+    --z: #4c5fd5;
+    --match: #f2a541;
+    --radius-sheet: 18px;
+    --radius-control: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #121a2b;
+      --sheet: #1a2439;
+      --ink: #e4e9f2;
+      --muted: #9aa6bd;
+      --line: #2e3a54;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.45 ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif;
+  }
+  main {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 16px 16px 40px;
+    display: grid;
+    gap: 14px;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 2px 4px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 1.6rem;
+    line-height: 1.1;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  h1 small {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    color: var(--muted);
+  }
+  h2 {
+    margin: 0 0 10px;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  section {
+    background: var(--sheet);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sheet);
+    padding: 14px 16px 16px;
+  }
+  button, input {
+    font: inherit;
+    color: inherit;
+  }
+  button {
+    border: 1px solid var(--line);
+    background: var(--sheet);
+    border-radius: var(--radius-control);
+    padding: 9px 14px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  button:focus-visible, input:focus-visible {
+    outline: 3px solid var(--z);
+    outline-offset: 2px;
+  }
+  button:disabled { opacity: 0.45; cursor: default; }
+  .primary {
+    background: var(--ink);
+    color: var(--sheet);
+    border-color: var(--ink);
+    font-weight: 700;
+  }
+  .note { margin: 0; color: var(--muted); font-size: 0.9rem; }
+  .error { color: var(--x); }
+
+  /* how far the phone is */
+  .near {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 14px;
+    align-items: center;
+  }
+  .near .meters {
+    font-size: 2.4rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    grid-row: span 2;
+    min-width: 4.2ch;
+  }
+  .track {
+    position: relative;
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--y), var(--match) 55%, var(--x));
+    opacity: 0.85;
+  }
+  .track span {
+    position: absolute;
+    top: -5px;
+    width: 22px;
+    height: 22px;
+    margin-left: -11px;
+    border-radius: 50%;
+    background: var(--sheet);
+    border: 4px solid var(--ink);
+    left: 0;
+    transition: left 0.4s ease;
+  }
+
+  /* motion chart */
+  canvas { width: 100%; height: 150px; display: block; }
+  .legend { display: flex; gap: 14px; font-size: 0.9rem; color: var(--muted); }
+  .legend i {
+    display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+    margin-right: 5px; vertical-align: 0;
+  }
+  .buttons { margin-left: auto; display: flex; gap: 6px; }
+  .key {
+    min-width: 28px; text-align: center; border-radius: 6px;
+    border: 1px solid var(--line); font-weight: 700; color: var(--muted);
+  }
+  .key.down { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+
+  /* values */
+  .values {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px 16px;
+    margin: 0;
+  }
+  .values dt { color: var(--muted); font-size: 0.9rem; }
+  .values dd {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .values dd small { font-size: 0.9rem; font-weight: 500; color: var(--muted); }
+
+  /* colors: the memorable part */
+  .colors-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .live {
+    width: 54px; height: 54px; border-radius: 50%;
+    border: 3px solid var(--line);
+    flex: none;
+  }
+  .verdict { font-weight: 700; }
+  .slots {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .slot {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    padding: 0;
+    border: 3px dashed var(--line);
+    background: transparent;
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+    font-size: 1.3rem;
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+  }
+  .slot.taught { border-style: solid; border-color: transparent; color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); }
+  .slot.matched { box-shadow: 0 0 0 5px var(--match); transform: scale(1.06); }
+  .slot.teaching { animation: pulse 0.6s ease-in-out infinite alternate; }
+  .slot .count {
+    position: absolute; bottom: 12%; font-size: 0.75rem; font-weight: 600;
+  }
+  @keyframes pulse { to { transform: scale(0.92); } }
+
+  /* message */
+  form { display: flex; gap: 8px; }
+  form input {
+    flex: 1; min-width: 0;
+    border: 1px solid var(--line); border-radius: var(--radius-control);
+    background: var(--paper); padding: 9px 12px;
+  }
+
+  /* piano */
+  .piano { display: flex; gap: 4px; }
+  .piano button {
+    flex: 1; height: 86px; padding: 0 0 8px; border-radius: 0 0 8px 8px;
+    display: flex; align-items: flex-end; justify-content: center;
+    background: #fff; color: #1b2a4a; border-color: var(--line);
+    font-weight: 700;
+  }
+  .piano button:active { background: var(--match); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .track span, .slot { transition: none; }
+    .slot.teaching { animation: none; outline: 3px solid var(--match); }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>CLUE Dashboard <small id="state">Not connected</small></h1>
+    <button id="connect" class="primary" type="button">Connect</button>
+  </header>
+
+  <p id="support" class="note" hidden></p>
+
+  <section aria-labelledby="near-title">
+    <h2 id="near-title">How far is the board</h2>
+    <div class="near">
+      <div class="meters" id="meters">-</div>
+      <div class="track" aria-hidden="true"><span id="marker"></span></div>
+      <p class="note" id="rssi">Connect to see the signal strength.</p>
+    </div>
+  </section>
+
+  <section aria-labelledby="motion-title">
+    <h2 id="motion-title">Motion</h2>
+    <canvas id="chart" aria-label="Acceleration of the board over the last 10 seconds"></canvas>
+    <div class="legend">
+      <span><i style="background: var(--x)"></i>x</span>
+      <span><i style="background: var(--y)"></i>y</span>
+      <span><i style="background: var(--z)"></i>z</span>
+      <span class="buttons" aria-label="Buttons of the board">
+        <span class="key" id="key-a">A</span><span class="key" id="key-b">B</span>
+      </span>
+    </div>
+  </section>
+
+  <section aria-labelledby="air-title">
+    <h2 id="air-title">Around the board</h2>
+    <dl class="values">
+      <div><dt>Temperature</dt><dd id="temp">-</dd></div>
+      <div><dt>Humidity</dt><dd id="hum">-</dd></div>
+      <div><dt>Pressure</dt><dd id="press">-</dd></div>
+      <div><dt>Light</dt><dd id="light">-</dd></div>
+    </dl>
+  </section>
+
+  <section aria-labelledby="colors-title">
+    <h2 id="colors-title">Teach colors</h2>
+    <div class="colors-head">
+      <div class="live" id="live" aria-hidden="true"></div>
+      <div>
+        <div class="verdict" id="verdict">Hold an object against the sensor</div>
+        <p class="note">Tap a circle to teach it the color under the sensor.
+          Press and hold to forget it.</p>
+      </div>
+    </div>
+    <div class="slots" id="slots"></div>
+    <p class="note" style="margin-top: 10px">
+      <button type="button" id="forget-all">Forget all colors</button>
+    </p>
+  </section>
+
+  <section aria-labelledby="message-title">
+    <h2 id="message-title">Message on the screen</h2>
+    <form id="message">
+      <input id="text" maxlength="60" autocomplete="off" placeholder="Hello from my phone"
+             aria-label="Message">
+      <button type="submit">Show it</button>
+    </form>
+  </section>
+
+  <section aria-labelledby="piano-title">
+    <h2 id="piano-title">Play the buzzer</h2>
+    <div class="piano" id="piano"></div>
+  </section>
+</main>
+
+<script type="module">
+import * as P from "./protocol.js";
+
+const $ = (id) => document.getElementById(id);
+const NOTES = [["C", 523], ["D", 587], ["E", 659], ["F", 698], ["G", 784], ["A", 880],
+               ["B", 988], ["C", 1047]];
+const HISTORY = 100;   // 10 s at 10 Hz
+
+let chars = null;
+let device = null;
+let busy = Promise.resolve();
+const accel = [];
+const slotColors = Array(P.SLOTS).fill(null);
+let lastRgb = null;
+let teaching = -1;
+let lastStatus = null;
+let startCount = 0;
+
+// writes must not overlap: Web Bluetooth rejects a second one in flight
+function write(char, data) {
+  busy = busy.then(() => char.writeValueWithResponse(data)).catch((e) => setState(e.message, true));
+  return busy;
+}
+
+function setState(text, error = false) {
+  $("state").textContent = text;
+  $("state").classList.toggle("error", error);
+}
+
+if (!navigator.bluetooth) {
+  $("support").hidden = false;
+  $("support").textContent = "This browser has no Web Bluetooth. Open the page in Chrome " +
+    "on Android, served over https or from localhost.";
+  $("connect").disabled = true;
+}
+
+async function connect() {
+  try {
+    device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: "CLUE" }],
+      optionalServices: [P.UUID.service],
+    });
+    device.addEventListener("gattserverdisconnected", disconnected);
+    setState("Connecting");
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(P.UUID.service);
+    chars = {};
+    for (const name of ["sensors", "status", "text", "teach", "tone"]) {
+      chars[name] = await service.getCharacteristic(P.UUID[name]);
+    }
+    chars.sensors.addEventListener("characteristicvaluechanged",
+      (e) => onSensors(P.decodeSensors(e.target.value)));
+    chars.status.addEventListener("characteristicvaluechanged",
+      (e) => onStatus(P.decodeStatus(e.target.value)));
+    await chars.sensors.startNotifications();
+    await chars.status.startNotifications();
+    setState(`Connected to ${device.name}`);
+    $("connect").textContent = "Disconnect";
+  } catch (e) {
+    setState(e.name === "NotFoundError" ? "No board chosen" : e.message, e.name !== "NotFoundError");
+  }
+}
+
+function disconnected() {
+  chars = null;
+  setState("Disconnected, tap Connect to try again", true);
+  $("connect").textContent = "Connect";
+  $("meters").textContent = "-";
+  $("rssi").textContent = "Connect to see the signal strength.";
+}
+
+$("connect").addEventListener("click", () => {
+  if (device && device.gatt.connected) {
+    device.gatt.disconnect();
+  } else {
+    connect();
+  }
+});
+
+const fmt = (v, digits, unit) => (v === null ? "-" :
+  `${v.toFixed(digits)}<small> ${unit}</small>`);
+
+function onSensors(s) {
+  $("temp").innerHTML = fmt(s.temp, 1, "C");
+  $("hum").innerHTML = fmt(s.hum, 0, "%");
+  $("press").innerHTML = fmt(s.press, 1, "hPa");
+  $("light").innerHTML = fmt(s.light, 0, "counts");
+  lastRgb = s.rgb;
+  $("live").style.background = P.rgbToCss(s.rgb);
+  if (s.accel) {
+    accel.push(s.accel);
+    if (accel.length > HISTORY) {
+      accel.shift();
+    }
+    drawChart();
+  }
+}
+
+function onStatus(st) {
+  // the board finished teaching when the count stops growing
+  if (teaching >= 0 && lastStatus && st.counts[teaching] > lastStatus.counts[teaching]) {
+    slotColors[teaching] = lastRgb;
+  }
+  if (teaching >= 0 && lastStatus && st.counts[teaching] - startCount >= 10) {
+    teaching = -1;
+  }
+  lastStatus = st;
+  $("key-a").classList.toggle("down", st.buttonA);
+  $("key-b").classList.toggle("down", st.buttonB);
+
+  const verdict = st.match >= 0 ? `Color ${st.match + 1}, ${st.distance.toFixed(1)} from it` :
+    st.match === P.MATCH_FAR ? "Hold an object against the sensor" :
+    st.counts.some((c) => c) ? "A color it does not know" : "Nothing taught yet";
+  $("verdict").textContent = verdict;
+  drawSlots(st);
+
+  if (st.rssi !== null) {
+    const d = P.distanceFromRssi(st.rssi);
+    $("meters").textContent = d < 10 ? `${d.toFixed(1)} m` : "10+ m";
+    $("rssi").textContent = `${st.rssi} dBm, a rough guess from the signal strength`;
+    const pos = Math.min(1, Math.max(0, (-40 - st.rssi) / 50));
+    $("marker").style.left = `${pos * 100}%`;
+  }
+}
+
+function drawSlots(st) {
+  const box = $("slots");
+  if (!box.children.length) {
+    for (let i = 0; i < P.SLOTS; i++) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "slot";
+      b.innerHTML = `${i + 1}<span class="count"></span>`;
+      let timer = null;
+      let held = false;
+      b.addEventListener("pointerdown", () => {
+        held = false;
+        timer = setTimeout(() => { held = true; forget(i); }, 700);
+      });
+      b.addEventListener("pointerup", () => clearTimeout(timer));
+      b.addEventListener("pointerleave", () => clearTimeout(timer));
+      b.addEventListener("click", () => { if (!held) teach(i); });
+      b.addEventListener("contextmenu", (e) => e.preventDefault());
+      box.appendChild(b);
+    }
+  }
+  [...box.children].forEach((b, i) => {
+    const n = st ? st.counts[i] : 0;
+    b.classList.toggle("taught", n > 0);
+    b.classList.toggle("matched", !!st && st.match === i);
+    b.classList.toggle("teaching", teaching === i);
+    // taught before the page connected: the board knows it, the page does not
+    b.style.background = n === 0 ? "transparent" :
+      (slotColors[i] ? P.rgbToCss(slotColors[i]) : "var(--muted)");
+    b.querySelector(".count").textContent = n ? `${n}` : "";
+    b.setAttribute("aria-label", n ? `Color ${i + 1}, ${n} samples` : `Teach color ${i + 1}`);
+  });
+}
+
+function teach(i) {
+  if (!chars) return;
+  if (lastStatus && lastStatus.match === P.MATCH_FAR) {
+    $("verdict").textContent = "Hold the object against the sensor first";
+    return;
+  }
+  teaching = i;
+  startCount = lastStatus ? lastStatus.counts[i] : 0;
+  write(chars.teach, P.encodeTeach(P.TEACH_SAMPLES, i));
+}
+
+function forget(i) {
+  if (!chars) return;
+  slotColors[i] = null;
+  write(chars.teach, P.encodeTeach(P.TEACH_CLEAR, i));
+}
+
+$("forget-all").addEventListener("click", () => {
+  if (!chars) return;
+  slotColors.fill(null);
+  write(chars.teach, P.encodeTeach(P.TEACH_CLEAR_ALL, 0));
+});
+
+$("message").addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (chars) write(chars.text, P.encodeText($("text").value));
+});
+
+for (const [name, freq] of NOTES) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = name;
+  b.setAttribute("aria-label", `Play ${name}`);
+  b.addEventListener("pointerdown", () => { if (chars) write(chars.tone, P.encodeTone(freq, 250)); });
+  $("piano").appendChild(b);
+}
+
+function drawChart() {
+  const c = $("chart");
+  const dpr = window.devicePixelRatio || 1;
+  const w = c.clientWidth;
+  const h = c.clientHeight;
+  if (c.width !== Math.round(w * dpr)) {
+    c.width = Math.round(w * dpr);
+    c.height = Math.round(h * dpr);
+  }
+  const ctx = c.getContext("2d");
+  const css = getComputedStyle(document.documentElement);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  ctx.strokeStyle = css.getPropertyValue("--line");
+  ctx.lineWidth = 1;
+  for (const g of [-1, 0, 1]) {
+    const y = h / 2 - (g * h) / 4.4;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+  ctx.lineWidth = 2;
+  ["--x", "--y", "--z"].forEach((v, axis) => {
+    ctx.strokeStyle = css.getPropertyValue(v);
+    ctx.beginPath();
+    accel.forEach((a, i) => {
+      const x = (i / (HISTORY - 1)) * w;
+      const y = h / 2 - (Math.max(-2, Math.min(2, a[axis])) * h) / 4.4;
+      if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+    });
+    ctx.stroke();
+  });
+}
+
+drawSlots(null);
+drawChart();
+</script>
+</body>
+</html>
