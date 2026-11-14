@@ -102,8 +102,15 @@ the samples in one place, and the relaying over a line of nodes.
 
 ## Hardware notes
 
-Runs on native nodes, not run on hardware yet. Things to check first:
+Run on 8 IoT-LAB M3 nodes along a 58 m corridor in Grenoble (m3-93, 80, 2,
+13, 26, 40, 54, 68, about 8 m apart) on 2026-11-14:
 
-- the messages get through on a busy site, with the default CSMA and
-  retransmissions of RIOT
-- how many nodes of a site hear each other
+- local models 45 to 49.5%, federated models 88 to 89%, as on native nodes
+- the nodes formed 2 chains, with no link between m3-2 and m3-13:
+  m3-93, 80, 2 (3 nodes, relayed over 2 hops) and m3-13, 26, 40, 54, 68,
+  where the statistics of m3-68 reach m3-13 over 4 hops
+- m3-68 was heard by m3-54 but heard nobody: its own federated model stayed
+  local, a one way link
+- after a reset of m3-26, it saw its old sequence number relayed back,
+  jumped past it, and the others had its new statistics 75 s later
+- no send failed with the default CSMA of RIOT

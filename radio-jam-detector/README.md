@@ -101,9 +101,25 @@ flagged and described with the right kind and channels.
 
 ## Hardware notes
 
-Not run on hardware yet. Things to check first:
+Run on 3 IoT-LAB M3 nodes in Grenoble (m3-2, m3-3, m3-4, 60 cm apart in a
+row) on 2026-11-14, m3-4 being the interferer:
 
-- the time of a scan (8 x 16 channels x 3 assessments), which sets how
-  often the node can scan
-- that the occupancy is 0 on quiet channels and goes up near a transmitter
-- the alarm level and the 4 standard deviations, on a real environment
+- a scan takes less than its 500 ms period: 2 scans per second
+- the usual occupancy learned is 0 on most channels and 3 to 4% on
+  channels 17 and 18 (Wi-Fi channel 6, probably), seen on m3-2 and m3-3
+  but not on m3-4
+- no false alarm in about 900 scans of normal traffic on the 2 detectors
+- every burst raised an alarm within 2 scans (1 s), cleared a few scans
+  after its end:
+
+| burst from m3-4                   | m3-3 (60 cm)            | m3-2 (1.2 m)            |
+|-----------------------------------|-------------------------|-------------------------|
+| channel 20, 50%, -17 dBm, 30 s    | narrowband 20-20        | unusual (no channel)    |
+| channel 15, 100%, -17 dBm, 30 s   | narrowband 15-15        | narrowband 15-15        |
+| channel 26, 100%, 0 dBm, 30 s     | narrowband 25-26        | narrowband 26-26        |
+
+The busy fraction measured is below the duty cycle of the interferer (60
+to 80% for a 100% duty cycle at 60 cm), as the node is idle between its
+frames. At 1.2 m, a 50% -17 dBm burst only raises the channel to 2/15:
+the scan is clearly unusual but no channel is 4 standard deviations away.
+The wideband case (Wi-Fi) has only been checked in the host test.
