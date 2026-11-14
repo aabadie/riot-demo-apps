@@ -111,8 +111,32 @@ located, every message going through the advertisement encoding.
 
 ## Hardware notes
 
-Not run on hardware yet. Things to check first:
+Run on IoT-LAB on 2026-11-14.
 
-- that scanning and advertising at the same time loses few tag
-  advertisements on the nRF52832 of the dwm1001
-- the number of anchors heard per tag across the floor
+Toulouse, 43 dwm1001 nodes over a floor of about 22 x 12 m, split along x
+in 3 zones (x < 3 m, 3 to 10 m, above 10 m): 5 anchors per zone, 15 tags
+teaching (12 fingerprints each), 13 test tags at other places, 10 seconds
+each, locator dwm1001-21 (it hears 10 of the 15 anchors):
+
+| true zone | located in 0 | 1  | 2  |
+|-----------|--------------|----|----|
+| 0         | 30           | 20 | 0  |
+| 1         | 11           | 29 | 0  |
+| 2         | 0            | 0  | 40 |
+
+99 of 130 seconds (76%) and 10 of 13 test places right. The 3 places
+located in the wrong zone are all within about 1.5 m of the line between
+zones 0 and 1, near a cluster of zone 1 nodes; zone 2 is always right.
+
+Saclay, the 2 groups of nrf52dk and nrf52840dk nodes about 12 m apart, a
+zone each, 6 anchors, 7 tags teaching, 6 test tags: 60 of 60 seconds right
+(nrf52dk-5 did not answer on its serial port and was left out).
+
+The first runs found a bug: the locator followed at most 6 tags and never
+freed their slots, so it ignored every tag after the sixth. The slot of a
+tag no anchor heard for 3 seconds is now reused (host test "tags one after
+the other").
+
+Scanning and advertising at the same time works on the nRF52832 of the
+dwm1001 and nrf52dk. How many tag advertisements the anchors hear per
+second was not measured (`verbose on` shows it).

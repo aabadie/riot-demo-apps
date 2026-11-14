@@ -172,6 +172,18 @@ static void _test_floor(void)
     int heard = zones_fingerprint(&loc, 0x7a62, now + ZONES_STALE_MS + 1000, f);
     _check("stale reports dropped", heard == 0 && f[0] == ZONES_RSSI_NONE);
     _check("unknown tag", zones_fingerprint(&loc, 0x0001, now, f) == -1);
+
+    /* more tags than slots, one after the other: the silent ones make room */
+    unsigned followed = 0;
+    for (unsigned i = 0; i < 3 * ZONES_MAX_TAGS; i++) {
+        now += ZONES_STALE_MS + 1000;
+        uint16_t tag = (uint16_t)(0x5000 + i);
+        for (unsigned s = 0; s < 3; s++, now += 1000) {
+            _second(anchors, &loc, 0, places[0], tag, now, f);
+        }
+        followed += zones_fingerprint(&loc, tag, now - 1000, f) > 0;
+    }
+    _check("tags one after the other all followed", followed == 3 * ZONES_MAX_TAGS);
 }
 
 int main(void)

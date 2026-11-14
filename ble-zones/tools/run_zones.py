@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 ID_RE = re.compile(r"id ([0-9a-f]{4})")
-ZONE_RE = re.compile(r"^Z ([0-9a-f]{4}) (\d+) (\d+) (\d+)")
+ZONE_RE = re.compile(r"^(?:> )?Z ([0-9a-f]{4}) (\d+) (\d+) (\d+)")
 
 
 @dataclass

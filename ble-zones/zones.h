@@ -39,7 +39,9 @@ extern "C" {
 
 #define ZONES_COMPANY           (0xffffU)   /**< test company id */
 #define ZONES_MAX_TAGS          (6)         /**< tags heard by an anchor,
-                                                 tags followed by a locator */
+                                                 tags followed at once by a
+                                                 locator; the slot of a tag
+                                                 gone silent is reused */
 #define ZONES_MAX_ANCHORS       (24)        /**< anchors used as features */
 #define ZONES_MAX_ITEMS         (480)       /**< fingerprints learned */
 #define ZONES_MAX_ZONES         (10)        /**< zones 0 to 9 */

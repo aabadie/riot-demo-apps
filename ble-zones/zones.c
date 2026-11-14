@@ -159,6 +159,21 @@ static int _index(uint16_t *ids, unsigned *n, unsigned max, uint16_t id, bool ad
     return (int)(*n)++;
 }
 
+/* a tag no anchor heard for a while, its slot can go to a new tag */
+static int _stale_tag(const zones_locator_t *loc, uint32_t now)
+{
+    for (unsigned t = 0; t < loc->n_tags; t++) {
+        bool stale = true;
+        for (unsigned a = 0; a < loc->n_anchors && stale; a++) {
+            stale = !loc->heard_ms[t][a] || now - loc->heard_ms[t][a] > ZONES_STALE_MS;
+        }
+        if (stale) {
+            return (int)t;
+        }
+    }
+    return -1;
+}
+
 void zones_locator_report(zones_locator_t *loc, const zones_report_t *r, uint32_t now)
 {
     /* features keep the order the anchors were first heard in, so that the
@@ -171,7 +186,12 @@ void zones_locator_report(zones_locator_t *loc, const zones_report_t *r, uint32_
     for (unsigned i = 0; i < r->count; i++) {
         int t = _index(loc->tags, &loc->n_tags, ZONES_MAX_TAGS, r->tag[i], true);
         if (t < 0) {
-            continue;
+            t = _stale_tag(loc, now);
+            if (t < 0) {
+                continue;
+            }
+            loc->tags[t] = r->tag[i];
+            memset(loc->heard_ms[t], 0, sizeof(loc->heard_ms[t]));
         }
         loc->rssi[t][a] = r->rssi[i];
         loc->heard_ms[t][a] = now;
