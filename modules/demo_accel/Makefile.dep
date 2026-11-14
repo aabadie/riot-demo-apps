@@ -1,0 +1,6 @@
+# The accelerometer of each demo board
+ifneq (,$(filter adafruit-pybadge,$(BOARD)))
+  USEMODULE += lis3dh
+else ifneq (,$(filter adafruit-clue,$(BOARD)))
+  USEMODULE += lsm6dsxx
+endif

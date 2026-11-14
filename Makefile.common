@@ -1,0 +1,17 @@
+# Common settings of the demo applications, included by each application
+# Makefile after setting APPLICATION and BOARD.
+
+DEMO_APPS_BASE := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+
+# Path to the RIOT tree. The lvgl applications need lvgl v9, use a RIOT tree
+# with the updated package, see the README.
+RIOTBASE ?= $(abspath $(DEMO_APPS_BASE)/../RIOT)
+
+EXTERNAL_MODULE_DIRS += $(DEMO_APPS_BASE)/modules
+
+DEVELHELP ?= 0
+QUIET ?= 1
+
+# The default 5 MHz SPI clock is slow for animations
+CFLAGS += -DILI9341_PARAM_SPI_CLK=SPI_CLK_10MHZ
+CFLAGS += -DST77XX_PARAM_SPI_CLK=SPI_CLK_10MHZ

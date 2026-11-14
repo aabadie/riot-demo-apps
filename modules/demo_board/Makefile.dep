@@ -1,0 +1,6 @@
+FEATURES_REQUIRED += periph_gpio
+
+# The PyBadge buttons are behind a 74HC165 shift register
+ifneq (,$(filter adafruit-pybadge,$(BOARD)))
+  USEMODULE += sn74hc165
+endif
