@@ -12,7 +12,7 @@ can do on them.
 | `pybadge-stackfall` | `adafruit-pybadge` | Stackfall: falling blocks puzzle with music        |
 | `pybadge-tiltmaze`  | `adafruit-pybadge` | Tilt Maze: roll a ball through random mazes        |
 
-And six applications with machine learning, using emlearn, each with a
+And seven applications with machine learning, using emlearn, each with a
 README of its own:
 
 | Application          | Board        | What it does                                             |
@@ -23,6 +23,7 @@ README of its own:
 | `bot-brain`          | both         | Pong against a network trained by imitation              |
 | `clue-sound-spotter` | `adafruit-clue` | Claps, snaps, whistles, knocks; record and train      |
 | `clue-color-sniffer` | `adafruit-clue` | Colors taught on the board, naive Bayes             |
+| `clue-voice-keyboard` | `adafruit-clue` | Spell with the NATO alphabet, types over USB HID   |
 
 None of them has been run on hardware yet: they build, and the machine
 learning parts pass host tests (`make -C <app>/tests/host`), the rest is
