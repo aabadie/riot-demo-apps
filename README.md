@@ -25,9 +25,18 @@ README of its own:
 | `clue-color-sniffer` | `adafruit-clue` | Colors taught on the board, naive Bayes             |
 | `clue-voice-keyboard` | `adafruit-clue` | Spell with the NATO alphabet, types over USB HID   |
 
+And two applications for IEEE 802.15.4 nodes of the FIT IoT-LAB testbed
+(`iotlab-m3` by default, also `samr21-xpro` and `nrf52840dk`):
+
+| Application          | What it does                                                    |
+|----------------------|-----------------------------------------------------------------|
+| `radio-jam-detector` | Interference on the 16 channels, Gaussian mixture learned on the node, with a test transmitter |
+| `radio-tinyfl`       | Federated naive Bayes: nodes share model statistics, never samples; runs on native nodes too |
+
 None of them has been run on hardware yet: they build, and the machine
-learning parts pass host tests (`make -C <app>/tests/host`), the rest is
-waiting for a first flash.
+learning parts pass host tests (`make -C <app>/tests/host`), `radio-tinyfl`
+also runs on native nodes (`make -C radio-tinyfl/tests/native`). The rest
+is waiting for a first flash.
 
 ## RIOT tree
 
