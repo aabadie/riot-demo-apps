@@ -34,7 +34,7 @@ And two applications for IEEE 802.15.4 nodes of the FIT IoT-LAB testbed
 | `radio-jam-detector` | Interference on the 16 channels, Gaussian mixture learned on the node, with a test transmitter |
 | `radio-tinyfl`       | Federated naive Bayes: nodes share model statistics, never samples; runs on native nodes too |
 
-And four applications with BLE (NimBLE) and a phone or the BLE nodes of
+And five applications with BLE (NimBLE) and a phone or the BLE nodes of
 IoT-LAB:
 
 | Application          | Board           | What it does                                          |
@@ -42,6 +42,7 @@ IoT-LAB:
 | `clue-bthome`        | `adafruit-clue` | BTHome v2 sensor beacon for Home Assistant, buttons and vibration anomalies |
 | `clue-ble-dashboard` | `adafruit-clue` | Web Bluetooth page on the phone: live sensors, teach colors, message, piano |
 | `clue-ble-motion`    | `adafruit-clue` | Turn a 3D teapot in a web page by turning the board, orientation filter on the board |
+| `clue-qr-printer`    | `adafruit-clue` | QR code of a text from the shell or BLE, on the screen and the thermal printer of Adafruit |
 | `ble-zones`          | `dwm1001`, `nrf52dk`, `nrf52840dk`, `adafruit-clue` | Zone of BLE tags from fingerprints, kNN learned on the node |
 
 The two radio applications ran on IoT-LAB M3 nodes, and `ble-zones` on the
@@ -49,7 +50,8 @@ BLE nodes of IoT-LAB Toulouse and Saclay, see their READMEs. The others have
 not been run on hardware yet: they build, and their machine learning and
 protocol parts pass host tests (`make -C <app>/tests/host`),
 `radio-tinyfl` also runs on native nodes (`make -C
-radio-tinyfl/tests/native`).
+radio-tinyfl/tests/native`), and `clue-qr-printer` with its printer on a
+pseudo terminal (`clue-qr-printer/tests/native/run.py`).
 
 The microphone applications (`clue-soundbars`, `clue-keywords`,
 `clue-sound-spotter` and `clue-voice-keyboard`) also build for the Adafruit
@@ -70,6 +72,8 @@ the `demo-apps` branch of RIOT, checked out in `../RIOT-drivers`:
   support`, for the PyBadge accelerometer and buttons
 - `boards/adafruit-clue` and `boards/adafruit-pybadge` configuration fixes,
   see below
+- `drivers/adafruit_thermal: add the thermal printers of Adafruit`, for
+  `clue-qr-printer`
 - `cpu/samd5x: add a PDM driver on a SERCOM in SPI mode` and
   `boards/adafruit-pybadge: add the PDM microphone of the EdgeBadge`, for the
   microphone applications on the EdgeBadge
@@ -90,7 +94,8 @@ directory, with the emlearn version of the RIOT package:
     .venv/bin/pip install emlearn==0.21.1 scikit-learn numpy pyserial matplotlib setuptools
 
 The host test of `clue-bthome` also needs `bthome-ble`, the BTHome parser of
-Home Assistant, and the one of `clue-ble-dashboard` needs node.
+Home Assistant, the one of `clue-ble-dashboard` needs node, and the native
+test of `clue-qr-printer` needs `zxing-cpp` and `pillow`.
 
 The training scripts call the C code of the applications through ctypes,
 so they need a C compiler (`cc`).
