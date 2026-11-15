@@ -34,13 +34,14 @@ And two applications for IEEE 802.15.4 nodes of the FIT IoT-LAB testbed
 | `radio-jam-detector` | Interference on the 16 channels, Gaussian mixture learned on the node, with a test transmitter |
 | `radio-tinyfl`       | Federated naive Bayes: nodes share model statistics, never samples; runs on native nodes too |
 
-And three applications with BLE (NimBLE) and a phone or the BLE nodes of
+And four applications with BLE (NimBLE) and a phone or the BLE nodes of
 IoT-LAB:
 
 | Application          | Board           | What it does                                          |
 |----------------------|-----------------|-------------------------------------------------------|
 | `clue-bthome`        | `adafruit-clue` | BTHome v2 sensor beacon for Home Assistant, buttons and vibration anomalies |
 | `clue-ble-dashboard` | `adafruit-clue` | Web Bluetooth page on the phone: live sensors, teach colors, message, piano |
+| `clue-ble-motion`    | `adafruit-clue` | Turn a 3D teapot in a web page by turning the board, orientation filter on the board |
 | `ble-zones`          | `dwm1001`, `nrf52dk`, `nrf52840dk`, `adafruit-clue` | Zone of BLE tags from fingerprints, kNN learned on the node |
 
 The two radio applications ran on IoT-LAB M3 nodes, and `ble-zones` on the

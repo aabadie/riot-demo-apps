@@ -1,0 +1,506 @@
+<!doctype html>
+<!--
+  SPDX-FileCopyrightText: 2026 Inria
+  SPDX-License-Identifier: LGPL-2.1-only
+
+  Turn a teapot with the Adafruit CLUE, over Web Bluetooth. Serve this
+  directory over http on localhost, see the README.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CLUE Teapot</title>
+<style>
+  :root {
+    --stage-top: #dfe5ee;
+    --stage-bottom: #b9c3d3;
+    --ink: #1b2433;
+    --muted: #5d6a80;
+    --line: #c3ccda;
+    --panel: #f4f6fa;
+    --glaze: #2c4ea8;
+    --live: #c47d22;
+    --bad: #b33a3a;
+    --radius: 10px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --stage-top: #1d2533;
+      --stage-bottom: #0e131c;
+      --ink: #e4e9f2;
+      --muted: #93a0b6;
+      --line: #2f3a4d;
+      --panel: #161d29;
+      --glaze: #6f8fe6;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--panel);
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px 10px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+  #state { color: var(--muted); font-size: 0.9rem; text-align: right; }
+  #state.live { color: var(--live); }
+  #state.bad { color: var(--bad); }
+  .stage {
+    position: relative;
+    margin: 0 16px;
+    border-radius: var(--radius);
+    background: linear-gradient(var(--stage-top), var(--stage-bottom));
+    aspect-ratio: 1 / 1;
+    max-height: 62vh;
+    overflow: hidden;
+  }
+  canvas { width: 100%; height: 100%; display: block; }
+  .angles {
+    position: absolute;
+    left: 12px;
+    bottom: 10px;
+    display: flex;
+    gap: 14px;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .angles b { color: var(--ink); font-weight: 600; }
+  .keys { position: absolute; right: 12px; bottom: 10px; display: flex; gap: 6px; }
+  .key {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 1.5px solid var(--muted);
+    display: grid; place-items: center;
+    font-size: 0.75rem; color: var(--muted);
+  }
+  .key.down { background: var(--live); border-color: var(--live); color: #fff; }
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 14px 16px 6px;
+  }
+  button, select {
+    font: inherit;
+    font-size: 0.95rem;
+    padding: 11px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink);
+    min-height: 44px;
+  }
+  button.primary { background: var(--glaze); border-color: var(--glaze); color: #fff; font-weight: 600; }
+  button:disabled, select:disabled { opacity: 0.45; }
+  button:focus-visible, select:focus-visible { outline: 3px solid var(--live); outline-offset: 2px; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; }
+  .seg button { border-radius: 0; }
+  .seg button:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+  .seg button:last-child { border-radius: 0 var(--radius) var(--radius) 0; border-left: 0; }
+  .seg button[aria-pressed="true"] { background: var(--line); font-weight: 600; }
+  details { padding: 4px 16px 18px; color: var(--muted); font-size: 0.88rem; }
+  summary { cursor: pointer; padding: 6px 0; }
+  .raw { display: grid; grid-template-columns: auto 1fr 1fr 1fr; gap: 2px 12px; font-variant-numeric: tabular-nums; }
+  .raw span:nth-child(4n + 1) { color: var(--ink); }
+  p.hint { margin: 4px 16px 0; color: var(--muted); font-size: 0.85rem; line-height: 1.45; max-width: 60ch; }
+  @media (min-width: 760px) {
+    body { display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-rows: auto 1fr; }
+    header { grid-column: 1 / -1; }
+    .stage { aspect-ratio: auto; max-height: none; height: calc(100vh - 76px); margin-bottom: 16px; }
+    .side { display: flex; flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>CLUE Teapot</h1>
+  <div id="state" role="status">Not connected</div>
+</header>
+<div class="stage">
+  <canvas id="view" aria-label="A teapot turned by the board"></canvas>
+  <div class="angles" aria-live="off">
+    <span>roll <b id="roll">0</b></span>
+    <span>pitch <b id="pitch">0</b></span>
+    <span>yaw <b id="yaw">0</b></span>
+    <span><b id="hz">0</b> Hz</span>
+  </div>
+  <div class="keys"><span class="key" id="key-a">A</span><span class="key" id="key-b">B</span></div>
+</div>
+<div class="side">
+  <div class="controls">
+    <button id="connect" class="primary">Connect</button>
+    <button id="demo">Try without a board</button>
+    <button id="recenter" disabled>Recenter</button>
+    <div class="seg" role="group" aria-label="Sensors used">
+      <button id="axes6" aria-pressed="true" disabled>6 axes</button>
+      <button id="axes9" aria-pressed="false" disabled>9 axes</button>
+    </div>
+    <select id="rate" disabled aria-label="Updates per second">
+      <option value="25">25 updates/s</option>
+      <option value="50" selected>50 updates/s</option>
+      <option value="100">100 updates/s</option>
+    </select>
+    <button id="calibrate" disabled>Calibrate gyro</button>
+  </div>
+  <p class="hint" id="hint">Press Connect and pick "CLUE Motion". Keep the board still on
+    the table for 2 seconds after it starts. Button A on the board recenters too.</p>
+  <details id="raw-box">
+    <summary>Raw sensors</summary>
+    <div class="raw">
+      <span>accel g</span><span id="ax">-</span><span id="ay">-</span><span id="az">-</span>
+      <span>gyro deg/s</span><span id="gx">-</span><span id="gy">-</span><span id="gz">-</span>
+    </div>
+  </details>
+</div>
+
+<script type="module">
+import * as P from "./protocol.js";
+import { buildTeapot } from "./teapot.js";
+
+const $ = (id) => document.getElementById(id);
+
+// --- rendering ------------------------------------------------------------
+
+const VERT = `#version 300 es
+in vec3 pos;
+in vec3 normal;
+uniform mat4 model;
+uniform mat4 viewProj;
+out vec3 vNormal;
+out vec3 vWorld;
+void main() {
+  vec4 world = model * vec4(pos, 1.0);
+  vWorld = world.xyz;
+  vNormal = mat3(model) * normal;
+  gl_Position = viewProj * world;
+}`;
+
+const FRAG = `#version 300 es
+precision highp float;
+in vec3 vNormal;
+in vec3 vWorld;
+uniform vec3 glaze;
+uniform vec3 eye;
+out vec4 color;
+void main() {
+  vec3 n = normalize(vNormal);
+  vec3 v = normalize(eye - vWorld);
+  // light both sides: the normal faces the eye
+  if (dot(n, v) < 0.0) n = -n;
+  vec3 key = normalize(vec3(-0.5, 0.9, 0.6));
+  vec3 fill = normalize(vec3(0.8, 0.2, -0.4));
+  float diffuse = max(dot(n, key), 0.0) * 0.85 + max(dot(n, fill), 0.0) * 0.25;
+  float spec = pow(max(dot(n, normalize(key + v)), 0.0), 90.0) * 0.9 +
+               pow(max(dot(n, normalize(fill + v)), 0.0), 40.0) * 0.2;
+  float rim = pow(1.0 - max(dot(n, v), 0.0), 3.0) * 0.35;
+  vec3 c = glaze * (0.18 + diffuse) + vec3(spec) + vec3(rim) * 0.6;
+  color = vec4(pow(c, vec3(1.0 / 1.15)), 1.0);
+}`;
+
+const SHADOW_VERT = `#version 300 es
+in vec2 corner;
+uniform mat4 viewProj;
+uniform float spread;
+out vec2 vCorner;
+void main() {
+  vCorner = corner;
+  gl_Position = viewProj * vec4(corner.x * 1.9 * spread, -0.82, corner.y * 1.2 * spread, 1.0);
+}`;
+
+const SHADOW_FRAG = `#version 300 es
+precision highp float;
+in vec2 vCorner;
+out vec4 color;
+void main() {
+  float d = length(vCorner);
+  color = vec4(0.0, 0.0, 0.0, 0.32 * (1.0 - smoothstep(0.2, 1.0, d)));
+}`;
+
+function compile(gl, vsrc, fsrc) {
+  const prog = gl.createProgram();
+  for (const [type, src] of [[gl.VERTEX_SHADER, vsrc], [gl.FRAGMENT_SHADER, fsrc]]) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    gl.attachShader(prog, s);
+  }
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  return prog;
+}
+
+function mul(a, b) {
+  const out = new Array(16).fill(0);
+  for (let c = 0; c < 4; c++) {
+    for (let r = 0; r < 4; r++) {
+      for (let k = 0; k < 4; k++) out[c * 4 + r] += a[k * 4 + r] * b[c * 4 + k];
+    }
+  }
+  return out;
+}
+
+function perspective(fovy, aspect, near, far) {
+  const f = 1 / Math.tan(fovy / 2);
+  return [f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, (far + near) / (near - far), -1,
+    0, 0, (2 * far * near) / (near - far), 0];
+}
+
+function lookAt([ex, ey, ez]) {
+  // looking at the origin, y up
+  let z = [ex, ey, ez];
+  const zl = Math.hypot(...z);
+  z = z.map((v) => v / zl);
+  let x = [z[2], 0, -z[0]];
+  const xl = Math.hypot(...x);
+  x = x.map((v) => v / xl);
+  const y = [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]];
+  const dot = (a) => a[0] * ex + a[1] * ey + a[2] * ez;
+  return [x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0,
+    -dot(x), -dot(y), -dot(z), 1];
+}
+
+const EYE = [0, 1.5, 5.6];
+const canvas = $("view");
+const gl = canvas.getContext("webgl2", { antialias: true, premultipliedAlpha: false, alpha: true });
+let draw = () => {};
+if (!gl) {
+  $("hint").textContent = "This browser has no WebGL 2, the teapot cannot be drawn.";
+}
+else {
+  const prog = compile(gl, VERT, FRAG);
+  const shadowProg = compile(gl, SHADOW_VERT, SHADOW_FRAG);
+  const teapot = buildTeapot();
+
+  const vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  for (const [name, data] of [["pos", teapot.positions], ["normal", teapot.normals]]) {
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, name);
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 3, gl.FLOAT, false, 0, 0);
+  }
+  const ibuf = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibuf);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, teapot.indices, gl.STATIC_DRAW);
+
+  const shadowVao = gl.createVertexArray();
+  gl.bindVertexArray(shadowVao);
+  const sbuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, sbuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const cloc = gl.getAttribLocation(shadowProg, "corner");
+  gl.enableVertexAttribArray(cloc);
+  gl.vertexAttribPointer(cloc, 2, gl.FLOAT, false, 0, 0);
+
+  const u = (p, n) => gl.getUniformLocation(p, n);
+  const glaze = getComputedStyle(document.documentElement).getPropertyValue("--glaze").trim();
+  const rgb = [1, 3, 5].map((i) => parseInt(glaze.slice(i, i + 2), 16) / 255);
+
+  draw = (qScene) => {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.round(canvas.clientWidth * dpr);
+    const h = Math.round(canvas.clientHeight * dpr);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    gl.viewport(0, 0, w, h);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    const viewProj = mul(perspective(0.6, w / h, 0.1, 50), lookAt(EYE));
+    const model = P.quatToMat4(qScene);
+
+    // the shadow shrinks when the teapot tips over
+    gl.disable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    // the alpha of the canvas is the one of the shadow, not its square
+    gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.useProgram(shadowProg);
+    gl.uniformMatrix4fv(u(shadowProg, "viewProj"), false, viewProj);
+    gl.uniform1f(u(shadowProg, "spread"), 0.75 + 0.25 * Math.abs(model[5]));
+    gl.bindVertexArray(shadowVao);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    gl.disable(gl.BLEND);
+    gl.enable(gl.DEPTH_TEST);
+    gl.useProgram(prog);
+    gl.uniformMatrix4fv(u(prog, "model"), false, model);
+    gl.uniformMatrix4fv(u(prog, "viewProj"), false, viewProj);
+    gl.uniform3fv(u(prog, "glaze"), rgb);
+    gl.uniform3fv(u(prog, "eye"), EYE);
+    gl.bindVertexArray(vao);
+    gl.drawElements(gl.TRIANGLES, teapot.indices.length, gl.UNSIGNED_INT, 0);
+  };
+}
+
+// --- state ----------------------------------------------------------------
+
+let q = [1, 0, 0, 0];
+let chars = null;
+let device = null;
+let busy = Promise.resolve();
+let demo = false;
+let received = [];
+let hasMag = false;
+
+function setState(text, kind = "") {
+  $("state").textContent = text;
+  $("state").className = kind;
+}
+
+function showAngles() {
+  const e = P.euler(q);
+  $("roll").textContent = e.roll.toFixed(0);
+  $("pitch").textContent = e.pitch.toFixed(0);
+  $("yaw").textContent = e.yaw.toFixed(0);
+  const now = performance.now();
+  received = received.filter((t) => now - t < 1000);
+  $("hz").textContent = received.length;
+}
+
+function frame(t) {
+  if (demo) {
+    // a slow wobble and a turn, in the axes of the board
+    const s = t / 1000;
+    const half = (deg) => (deg * Math.PI) / 360;
+    const r = half(28 * Math.sin(0.9 * s));
+    const p = half(18 * Math.sin(0.6 * s + 1));
+    const y = half(35 * s);
+    const qx = [Math.cos(r), Math.sin(r), 0, 0];
+    const qy = [Math.cos(p), 0, Math.sin(p), 0];
+    const qz = [Math.cos(y), 0, 0, Math.sin(y)];
+    q = qmul(qz, qmul(qy, qx));
+    received.push(performance.now());
+  }
+  draw(P.toScene(q));
+  showAngles();
+  requestAnimationFrame(frame);
+}
+
+function qmul([aw, ax, ay, az], [bw, bx, by, bz]) {
+  return [aw * bw - ax * bx - ay * by - az * bz, aw * bx + ax * bw + ay * bz - az * by,
+    aw * by - ax * bz + ay * bw + az * bx, aw * bz + ax * by - ay * bx + az * bw];
+}
+
+function write(data) {
+  if (!chars) return;
+  busy = busy.then(() => chars.control.writeValueWithResponse(data))
+    .catch((e) => setState(e.message, "bad"));
+}
+
+function setAxes(axes) {
+  $("axes6").setAttribute("aria-pressed", String(axes === 6));
+  $("axes9").setAttribute("aria-pressed", String(axes === 9));
+}
+
+function enable(on) {
+  for (const id of ["recenter", "axes6", "rate", "calibrate"]) $(id).disabled = !on;
+  $("axes9").disabled = !on || !hasMag;
+}
+
+function onMotion(event) {
+  const m = P.decodeMotion(event.target.value);
+  q = m.q;
+  received.push(performance.now());
+  $("key-a").classList.toggle("down", m.buttonA);
+  $("key-b").classList.toggle("down", m.buttonB);
+  const nineAxes = $("axes9").getAttribute("aria-pressed") === "true";
+  if (m.calibrating) setState("Keep the board still, calibrating", "live");
+  else if (nineAxes && !m.mag) setState("Turn the board around to find north", "live");
+  else setState(`Connected to ${device.name}`, "live");
+}
+
+function onRaw(event) {
+  const r = P.decodeRaw(event.target.value);
+  ["ax", "ay", "az"].forEach((id, i) => { $(id).textContent = r.accel[i].toFixed(3); });
+  ["gx", "gy", "gz"].forEach((id, i) => { $(id).textContent = r.gyro[i].toFixed(1); });
+}
+
+function disconnected() {
+  chars = null;
+  enable(false);
+  setState("Disconnected", "bad");
+  $("connect").textContent = "Connect";
+}
+
+async function connect() {
+  if (!navigator.bluetooth) {
+    setState("No Web Bluetooth in this browser: use Chrome or Edge, over https or localhost", "bad");
+    return;
+  }
+  try {
+    demo = false;
+    setState("Connecting...");
+    device = await navigator.bluetooth.requestDevice({
+      filters: [{ name: "CLUE Motion" }],
+      optionalServices: [P.UUID.service],
+    });
+    device.addEventListener("gattserverdisconnected", disconnected);
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(P.UUID.service);
+    chars = {};
+    for (const name of ["info", "motion", "raw", "control"]) {
+      chars[name] = await service.getCharacteristic(P.UUID[name]);
+    }
+    const info = P.decodeInfo(await chars.info.readValue());
+    if (info.version !== 1) throw new Error(`unknown protocol version ${info.version}`);
+    hasMag = info.hasMag;
+    $("rate").value = String(info.notifyHz);
+    setAxes(info.axes);
+    chars.motion.addEventListener("characteristicvaluechanged", onMotion);
+    chars.raw.addEventListener("characteristicvaluechanged", onRaw);
+    await chars.motion.startNotifications();
+    if ($("raw-box").open) await chars.raw.startNotifications();
+    enable(true);
+    $("connect").textContent = "Reconnect";
+    setState(`Connected to ${device.name}`, "live");
+  }
+  catch (e) {
+    chars = null;
+    enable(false);
+    setState(e.message, "bad");
+  }
+}
+
+$("connect").addEventListener("click", connect);
+$("demo").addEventListener("click", () => {
+  demo = !demo;
+  $("demo").textContent = demo ? "Stop the demo" : "Try without a board";
+  setState(demo ? "Demo, no board" : "Not connected", demo ? "live" : "");
+  if (!demo) q = [1, 0, 0, 0];
+});
+$("recenter").addEventListener("click", () => write(P.encodeRecenter()));
+$("calibrate").addEventListener("click", () => write(P.encodeCalibrate()));
+$("axes6").addEventListener("click", () => { setAxes(6); write(P.encodeMode(6)); });
+$("axes9").addEventListener("click", () => { setAxes(9); write(P.encodeMode(9)); });
+$("rate").addEventListener("change", (e) => write(P.encodeRate(Number(e.target.value))));
+$("raw-box").addEventListener("toggle", () => {
+  if (!chars) return;
+  busy = busy.then(() => ($("raw-box").open ? chars.raw.startNotifications()
+    : chars.raw.stopNotifications())).catch((e) => setState(e.message, "bad"));
+});
+
+if (new URLSearchParams(location.search).has("demo")) $("demo").click();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
