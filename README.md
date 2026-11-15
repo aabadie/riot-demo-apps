@@ -1,7 +1,8 @@
 # RIOT demo applications
 
-Small applications for two Adafruit boards with a screen, to show what RIOT
-can do on them.
+Small applications to show what RIOT can do: on two Adafruit boards with a
+screen, the CLUE and the PyBadge, on the nodes of the FIT IoT-LAB testbed,
+and with BLE.
 
 | Application         | Board              | What it does                                       |
 |---------------------|--------------------|----------------------------------------------------|
@@ -42,11 +43,18 @@ IoT-LAB:
 | `clue-ble-dashboard` | `adafruit-clue` | Web Bluetooth page on the phone: live sensors, teach colors, message, piano |
 | `ble-zones`          | `dwm1001`, `nrf52dk`, `nrf52840dk`, `adafruit-clue` | Zone of BLE tags from fingerprints, kNN learned on the node |
 
-The two radio applications ran on IoT-LAB M3 nodes, see their READMEs. The
-others have not been run on hardware yet: they build, and their machine
-learning and protocol parts pass host tests (`make -C <app>/tests/host`),
+The two radio applications ran on IoT-LAB M3 nodes, and `ble-zones` on the
+BLE nodes of IoT-LAB Toulouse and Saclay, see their READMEs. The others have
+not been run on hardware yet: they build, and their machine learning and
+protocol parts pass host tests (`make -C <app>/tests/host`),
 `radio-tinyfl` also runs on native nodes (`make -C
 radio-tinyfl/tests/native`).
+
+The microphone applications (`clue-soundbars`, `clue-keywords`,
+`clue-sound-spotter` and `clue-voice-keyboard`) also build for the Adafruit
+EdgeBadge, a PyBadge with a PDM microphone (`BOARD=adafruit-pybadge`). This
+is untested, and their screens are laid out for the 240x240 display of the
+CLUE, not the 160x128 one of the badge.
 
 ## RIOT tree
 
@@ -61,6 +69,9 @@ the `demo-apps` branch of RIOT, checked out in `../RIOT-drivers`:
   support`, for the PyBadge accelerometer and buttons
 - `boards/adafruit-clue` and `boards/adafruit-pybadge` configuration fixes,
   see below
+- `cpu/samd5x: add a PDM driver on a SERCOM in SPI mode` and
+  `boards/adafruit-pybadge: add the PDM microphone of the EdgeBadge`, for the
+  microphone applications on the EdgeBadge
 
 Build and flash with:
 
@@ -85,7 +96,7 @@ so they need a C compiler (`cc`).
 
 ## Shared modules
 
-`modules/` holds three external modules used by the applications:
+`modules/` holds four external modules used by the applications:
 
 - `demo_gfx`: filled rectangles, a 5x7 font, character sprites and pixel
   blocks on top of `disp_dev`, for the applications that do not use lvgl.
@@ -127,6 +138,11 @@ so they need a C compiler (`cc`).
   check them.
 - The speaker is driven as a GPIO on its DAC pin (PA02), with the amplifier
   enabled on PA27.
+- The EdgeBadge has a PDM microphone on SERCOM3 (clock PA16, data PA18).
+  The SAMD51 has no PDM peripheral: the driver of the `demo-apps` branch
+  clocks the microphone as an SPI master and filters the bits in software.
+  The sample rate is the nearest one the SPI clock allows (16304 Hz for
+  16 kHz); the applications use the rate returned by `pdm_init()`.
 
 ## The applications
 
