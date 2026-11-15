@@ -24,6 +24,7 @@ import sys
 import tempfile
 import warnings
 from pathlib import Path
+from types import ModuleType
 
 import numpy as np
 from numpy.typing import NDArray
@@ -43,7 +44,7 @@ class Pong(ctypes.Structure):
                 ("rng", ctypes.c_uint32)]
 
 
-def emlearn_module():
+def emlearn_module() -> ModuleType:
     saved = np.geterr()
     import emlearn
     # emlearn switches numpy to raise on any floating point error

@@ -152,14 +152,23 @@ int det_learn_fit(void)
 
     /* expectation maximization with diagonal covariances */
     for (unsigned iter = 0; iter < EM_ITER; iter++) {
+        /* the terms that do not depend on the sample, once per iteration:
+           logf is slow in software on the boards without FPU */
+        float base[K], inv_var[K][F];
+        for (unsigned k = 0; k < K; k++) {
+            base[k] = logf(weight[k] + 1e-12f);
+            for (unsigned f = 0; f < F; f++) {
+                base[k] -= 0.5f * logf(2.0f * (float)M_PI * var[k][f]);
+                inv_var[k][f] = 1.0f / var[k][f];
+            }
+        }
         for (unsigned i = 0; i < n; i++) {
             float lp[K], total;
             for (unsigned k = 0; k < K; k++) {
-                float s = logf(weight[k] + 1e-12f);
+                float s = base[k];
                 for (unsigned f = 0; f < F; f++) {
                     float d = _train[i][f] - _means[k * F + f];
-                    s -= 0.5f * (logf(2.0f * (float)M_PI * var[k][f]) +
-                                 d * d / var[k][f]);
+                    s -= 0.5f * d * d * inv_var[k][f];
                 }
                 lp[k] = s;
             }

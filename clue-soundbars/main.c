@@ -187,6 +187,7 @@ static const char *const _view_names[] = { "SPECTRUM", "LEVEL", "HISTORY" };
 
 static lv_obj_t *_views[VIEW_NUMOF];
 static lv_obj_t *_bars[NUM_BANDS];
+static lv_color_t _bar_color[NUM_BANDS];      /* indicator color set, black at first */
 static lv_obj_t *_peaks[NUM_BANDS];
 static lv_obj_t *_meter;
 static lv_obj_t *_meter_label;
@@ -270,7 +271,13 @@ static void _refresh(lv_timer_t *timer)
             _shown[b] = (db > _shown[b]) ? db : _shown[b] - 2.0f;
             int pct = _db_to_pct(_shown[b]);
             lv_bar_set_value(_bars[b], pct, LV_ANIM_OFF);
-            lv_obj_set_style_bg_color(_bars[b], _level_color(pct), LV_PART_INDICATOR);
+            /* lvgl redraws a bar on every style change, even to the same
+               color: only when it changes */
+            lv_color_t color = _level_color(pct);
+            if (!lv_color_eq(color, _bar_color[b])) {
+                _bar_color[b] = color;
+                lv_obj_set_style_bg_color(_bars[b], color, LV_PART_INDICATOR);
+            }
 
             if (_shown[b] >= _peak[b]) {
                 _peak[b] = _shown[b];
