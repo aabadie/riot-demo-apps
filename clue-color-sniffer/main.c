@@ -125,7 +125,7 @@ static void _status(const char *text, const char *detail, uint16_t color)
     int w = gfx_width() - x - 4;
 
     gfx_fill_rect(x, 36, w, 70, COLOR_BG);
-    gfx_text(x, 40, text, color, COLOR_BG, text[1] ? 2 : 5);
+    gfx_text(x, 40, text, color, COLOR_BG, (text[0] && text[1]) ? 2 : 5);
     if (detail) {
         gfx_text(x, 92, detail, COLOR_DIM, COLOR_BG, 1);
     }

@@ -150,12 +150,18 @@ static void _char(int x, int y, char c, uint16_t fg, uint16_t bg, unsigned scale
     const uint16_t pfg = _px(fg);
     const uint16_t pbg = _px(bg);
 
-    /* skip the characters that are not fully on screen */
-    if (x < 0 || y < 0 || x + cw > _width || y + ch > _height) {
+    /* skip the characters that are not fully on screen; the spacing column
+       after the glyph may be cut, as gfx_text_width() does not count it */
+    int w = (x + cw > _width) ? _width - x : cw;
+    if (x < 0 || y < 0 || w < cw - (int)scale || y + ch > _height) {
         return;
     }
 
-    int band = GFX_BUF_PIXELS / cw;
+    int band = GFX_BUF_PIXELS / w;
+    if (band == 0) {
+        /* a character wider than the buffer */
+        return;
+    }
     if (band > ch) {
         band = ch;
     }
@@ -164,13 +170,13 @@ static void _char(int x, int y, char c, uint16_t fg, uint16_t bg, unsigned scale
         int rows = (ch - y0 < band) ? (ch - y0) : band;
         for (int r = 0; r < rows; r++) {
             int fy = (y0 + r) / (int)scale;
-            for (int col = 0; col < cw; col++) {
+            for (int col = 0; col < w; col++) {
                 int fx = col / (int)scale;
                 bool on = (fx < 5) && (fy < 7) && (glyph[fx] & (1 << fy));
-                _buf[r * cw + col] = on ? pfg : pbg;
+                _buf[r * w + col] = on ? pfg : pbg;
             }
         }
-        _map(x, x + cw - 1, y + y0, y + y0 + rows - 1, _buf);
+        _map(x, x + w - 1, y + y0, y + y0 + rows - 1, _buf);
     }
 }
 

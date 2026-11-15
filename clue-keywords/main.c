@@ -32,6 +32,7 @@
 #define REFRESH_MS      (40U)
 #define RESULT_SHOW_MS  (1500U)
 #define FLAG_FRAME      (1U << 0)
+#define ECHO_MS         (80U)       /* after a sound of the speaker */
 
 #define COLOR_IDLE      (0x080818)
 
@@ -51,6 +52,8 @@ static const word_t _words[KWS_NUM_WORDS] = {
 /* --- audio side ---------------------------------------------------------- */
 
 static int16_t _frames[2][KWS_FRAME_LEN];
+/* the microphone is ignored until then, the speaker is playing */
+static volatile uint32_t _mute_until;
 static volatile unsigned _fill_frame;
 static volatile unsigned _fill_pos;
 static volatile int _ready_frame = -1;
@@ -85,6 +88,7 @@ static void *_dsp_thread(void *arg)
 {
     (void)arg;
     unsigned skip = SKIP_FRAMES;
+    bool muted = false;
 
     while (1) {
         thread_flags_wait_any(FLAG_FRAME);
@@ -95,6 +99,14 @@ static void *_dsp_thread(void *arg)
         if (skip) {
             skip--;
             continue;
+        }
+        if ((int32_t)(_mute_until - ztimer_now(ZTIMER_MSEC)) > 0) {
+            muted = true;
+            continue;
+        }
+        if (muted) {
+            muted = false;
+            kws_restart();
         }
         switch (kws_process(_frames[frame])) {
         case KWS_EVENT_TAUGHT:
@@ -149,6 +161,12 @@ static void _set_status(void)
     }
 }
 
+/* ignore the microphone while the speaker plays, and the echo after it */
+static void _mute_mic(unsigned ms)
+{
+    _mute_until = ztimer_now(ZTIMER_MSEC) + ms + ECHO_MS;
+}
+
 static void _show_result(void)
 {
     lv_obj_t *scr = lv_screen_active();
@@ -158,6 +176,7 @@ static void _show_result(void)
     if (w >= 0) {
         lv_label_set_text(_result_label, _words[w].name);
         lv_obj_set_style_bg_color(scr, lv_color_hex(_words[w].color), 0);
+        _mute_mic(120);
         tone_beep(_words[w].tone, 120);
     }
     else {
@@ -179,6 +198,7 @@ static void _refresh(lv_timer_t *timer)
     }
     if (_buttons.pressed & BTN_B) {
         kws_teach(kws_teaching() < 0 ? (int)_selected : -1);
+        _mute_mic(30);
         tone_beep(NOTE_A5, 30);
         _set_status();
     }
@@ -191,6 +211,7 @@ static void _refresh(lv_timer_t *timer)
     if (_taught_seq != _seen_taught) {
         static const tone_note_t ok[] = { { NOTE_E6, 60 }, { NOTE_REST, 40 }, { NOTE_E6, 60 } };
         _seen_taught = _taught_seq;
+        _mute_mic(160);
         tone_effect(ok, ARRAY_SIZE(ok));
         _update_cards();
         _set_status();

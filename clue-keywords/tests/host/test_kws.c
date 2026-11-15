@@ -187,8 +187,10 @@ int main(void)
     unsigned unknown_accepted = 0;
     for (int t = 0; t < TESTS; t++) {
         _word(KWS_NUM_WORDS, true);
+        unsigned before = _results;
         _feed();
-        if (kws_result_word() >= 0) {
+        /* only a new result counts, kws_result_word() keeps the last one */
+        if (_results != before && kws_result_word() >= 0) {
             unknown_accepted++;
         }
     }

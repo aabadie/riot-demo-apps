@@ -333,6 +333,15 @@ kws_event_t kws_process(const int16_t *frame)
     return KWS_EVENT_NONE;
 }
 
+void kws_restart(void)
+{
+    _in_speech = false;
+    _above = 0;
+    _below = 0;
+    _preroll_count = 0;
+    _current.len = 0;
+}
+
 void kws_teach(int word)
 {
     _teach_word = (word >= 0 && word < (int)KWS_NUM_WORDS) ? word : -1;

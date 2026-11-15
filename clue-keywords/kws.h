@@ -78,6 +78,12 @@ kws_event_t kws_process(const int16_t *frame);
 void kws_teach(int word);
 
 /**
+ * @brief   Drop the utterance in progress, for example while the speaker
+ *          plays: the noise floor is kept
+ */
+void kws_restart(void);
+
+/**
  * @brief   Word waiting for an example, -1 when classifying
  */
 int kws_teaching(void);
