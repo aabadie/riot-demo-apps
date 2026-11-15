@@ -87,7 +87,8 @@ Try a few channels, duty cycles and powers, then:
     iotlab-experiment stop
 
 `tools/watch.py` shows one colored row per scan. It needs Python 3.10 or
-later, and pyserial only for a local serial port (`--port`).
+later, and pyserial only for a local serial port (`--port`, at 115200 baud,
+`--baud 500000` for an `iotlab-m3` of your own).
 
 ## Host test
 

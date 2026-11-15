@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "irq.h"
 #include "shell.h"
 #include "thread.h"
 #include "ztimer.h"
@@ -62,6 +63,8 @@ static volatile uint8_t _jam_channel;
 static volatile unsigned _jam_seconds;
 static volatile unsigned _jam_duty;
 static volatile int8_t _jam_power;
+/* a new interfere command, its settings replace the ones of the burst */
+static volatile bool _jam_new;
 
 static char _radio_stack[THREAD_STACKSIZE_DEFAULT + 1024];
 
@@ -88,17 +91,24 @@ static void _scan(float occupancy[DET_CHANNELS])
 
 static void _interfere(void)
 {
+    unsigned state = irq_disable();
     uint8_t channel = _jam_channel;
     unsigned duty = _jam_duty;
+    unsigned seconds = _jam_seconds;
+    int8_t power = _jam_power;
+    _jam_new = false;
+    irq_restore(state);
+
     uint32_t air = radio_test_frame_us();
     uint32_t gap = air * (100 - duty) / duty;
-    uint32_t end = ztimer_now(ZTIMER_MSEC) + _jam_seconds * 1000;
+    uint32_t end = ztimer_now(ZTIMER_MSEC) + seconds * 1000;
     unsigned sent = 0, errors = 0;
 
     printf("I start channel %u duty %u%% power %d dBm for %u s\n", channel, duty,
-           _jam_power, _jam_seconds);
-    radio_set_channel(channel, _jam_power);
-    while (_mode == MODE_INTERFERE && (int32_t)(end - ztimer_now(ZTIMER_MSEC)) > 0) {
+           power, seconds);
+    radio_set_channel(channel, power);
+    while (_mode == MODE_INTERFERE && !_jam_new &&
+           (int32_t)(end - ztimer_now(ZTIMER_MSEC)) > 0) {
         if (radio_send_test_frame() == 0) {
             sent++;
         }
@@ -110,7 +120,12 @@ static void _interfere(void)
         }
     }
     printf("I done %u frames sent, %u errors\n", sent, errors);
-    _mode = MODE_SCAN;
+    /* back to scanning, unless a new burst was asked for meanwhile */
+    state = irq_disable();
+    if (!_jam_new && _mode == MODE_INTERFERE) {
+        _mode = MODE_SCAN;
+    }
+    irq_restore(state);
 }
 
 static void *_radio_thread(void *arg)
@@ -140,6 +155,10 @@ static void *_radio_thread(void *arg)
 
         _scan(occupancy);
         radio_rx_count(&rx);
+        if (_relearn || _mode == MODE_INTERFERE) {
+            /* a command came during the scan, it applies from the next one */
+            continue;
+        }
         scan++;
 
         char state = 'L';
@@ -229,11 +248,14 @@ static int _cmd_interfere(int argc, char **argv)
                INTERFERE_MAX_S);
         return 1;
     }
+    unsigned state = irq_disable();
     _jam_channel = (uint8_t)channel;
     _jam_seconds = (unsigned)seconds;
     _jam_duty = (unsigned)duty;
     _jam_power = (int8_t)power;
+    _jam_new = true;
     _mode = MODE_INTERFERE;
+    irq_restore(state);
     return 0;
 }
 

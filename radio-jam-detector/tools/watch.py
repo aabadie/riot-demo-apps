@@ -42,9 +42,9 @@ def tcp_lines(host: str, port: int, send: list[str]) -> Iterator[str]:
                 yield line.decode(errors="replace").strip()
 
 
-def serial_lines(port: str, send: list[str]) -> Iterator[str]:
+def serial_lines(port: str, baud: int, send: list[str]) -> Iterator[str]:
     import serial
-    with serial.Serial(port, 115200, timeout=1) as ser:
+    with serial.Serial(port, baud, timeout=1) as ser:
         for command in send:
             ser.write((command + "\n").encode())
         while True:
@@ -75,6 +75,8 @@ def main() -> int:
     source.add_argument("--tcp", metavar="HOST:PORT",
                         help="serial port of an IoT-LAB node through an ssh tunnel")
     source.add_argument("--port", help="local serial port, /dev/ttyACM0 for example")
+    parser.add_argument("--baud", type=int, default=115200,
+                        help="baud rate of --port (default 115200, 500000 for an iotlab-m3)")
     parser.add_argument("--send", action="append", default=[], metavar="COMMAND",
                         help="shell command to send first, can be repeated")
     parser.add_argument("--log", type=Path, help="also write the raw lines to this file")
@@ -84,7 +86,7 @@ def main() -> int:
         host, port = args.tcp.rsplit(":", 1)
         lines = tcp_lines(host, int(port), args.send)
     else:
-        lines = serial_lines(args.port, args.send)
+        lines = serial_lines(args.port, args.baud, args.send)
 
     log = args.log.open("a") if args.log else None
     header = "".join(f"{c:<2}" for c in CHANNELS)
@@ -94,6 +96,9 @@ def main() -> int:
             if log:
                 log.write(line + "\n")
                 log.flush()
+            # the shell prompt has no newline, the next line comes after it
+            while line.startswith("> "):
+                line = line[2:]
             fields = line.split()
             if len(fields) == 7 and fields[0] == "S":
                 show_scan(fields, sys.stdout)
