@@ -200,7 +200,7 @@ static view_t _view;
 static float _shown[NUM_BANDS];
 static float _peak[NUM_BANDS];
 static uint8_t _peak_hold[NUM_BANDS];
-static float _shown_level;
+static float _shown_level = DB_MIN;
 static buttons_t _buttons;
 
 static int _db_to_pct(float db)

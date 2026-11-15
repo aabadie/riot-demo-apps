@@ -265,7 +265,7 @@ static void _create_compass(lv_obj_t *page)
 {
     lv_obj_t *dial = lv_obj_create(page);
     lv_obj_set_size(dial, 150, 150);
-    lv_obj_align(dial, LV_ALIGN_TOP_MID, 0, 32);
+    lv_obj_align(dial, LV_ALIGN_TOP_MID, 0, 28);
     lv_obj_set_style_radius(dial, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(dial, lv_color_hex(COLOR_PANEL), 0);
     lv_obj_set_style_border_color(dial, lv_color_hex(COLOR_DIM), 0);
@@ -289,11 +289,12 @@ static void _create_compass(lv_obj_t *page)
 
     _heading_label = _label(page, &lv_font_montserrat_14, COLOR_TEXT);
     lv_label_set_text(_heading_label, "---");
-    lv_obj_align(_heading_label, LV_ALIGN_TOP_MID, 0, 186);
+    lv_obj_align(_heading_label, LV_ALIGN_TOP_MID, 0, 180);
 
     _calib_label = _label(page, NULL, COLOR_DIM);
     lv_label_set_text(_calib_label, "turn the board around");
-    lv_obj_align(_calib_label, LV_ALIGN_TOP_MID, 0, 204);
+    /* its line, 16 pixels high, ends inside the page of 214 */
+    lv_obj_align(_calib_label, LV_ALIGN_TOP_MID, 0, 196);
 }
 
 static void _show_page(unsigned page)
@@ -315,7 +316,10 @@ static void _update_climate(void)
         lv_arc_set_value(_temp_arc, (int)(v[0] * 10));
         lv_obj_set_style_arc_color(_temp_arc, lv_color_hex(v[0] > 24 ? COLOR_WARM : COLOR_COOL),
                                    LV_PART_INDICATOR);
-        lv_label_set_text_fmt(_temp_label, "%d.%d", (int)v[0], abs((int)(v[0] * 10)) % 10);
+        /* the sign apart, (int) of -0.5 is 0 */
+        long t10 = lroundf(v[0] * 10);
+        lv_label_set_text_fmt(_temp_label, "%s%ld.%ld", t10 < 0 ? "-" : "", labs(t10) / 10,
+                              labs(t10) % 10);
     }
     if (_read(_sensors.hum, v, 1, NULL, NULL)) {
         lv_bar_set_value(_hum_bar, (int)v[0], LV_ANIM_ON);
