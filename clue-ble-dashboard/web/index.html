@@ -313,7 +313,8 @@ const slotColors = Array(P.SLOTS).fill(null);
 let lastRgb = null;
 let teaching = -1;
 let lastStatus = null;
-let startCount = 0;
+let teachSeen = false;   // the board reported the teaching
+let teachStart = 0;
 
 // writes must not overlap: Web Bluetooth rejects a second one in flight
 function write(char, data) {
@@ -400,8 +401,12 @@ function onStatus(st) {
   if (teaching >= 0 && lastStatus && st.counts[teaching] > lastStatus.counts[teaching]) {
     slotColors[teaching] = lastRgb;
   }
-  if (teaching >= 0 && lastStatus && st.counts[teaching] - startCount >= 10) {
-    teaching = -1;
+  // done when the board says so, or if it never started (no object near)
+  if (teaching >= 0) {
+    teachSeen ||= st.teaching;
+    if ((teachSeen && !st.teaching) || (!teachSeen && Date.now() - teachStart > 3000)) {
+      teaching = -1;
+    }
   }
   lastStatus = st;
   $("key-a").classList.toggle("down", st.buttonA);
@@ -463,7 +468,8 @@ function teach(i) {
     return;
   }
   teaching = i;
-  startCount = lastStatus ? lastStatus.counts[i] : 0;
+  teachSeen = false;
+  teachStart = Date.now();
   write(chars.teach, P.encodeTeach(P.TEACH_SAMPLES, i));
 }
 

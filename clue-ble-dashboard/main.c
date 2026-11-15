@@ -59,6 +59,7 @@
 #define SLOW_MS         (1000U)     /* temperature, humidity, pressure, RSSI */
 #define NEAR_PRX        (40U)
 #define TEACH_SAMPLES   (10U)
+#define DASH_ATT_ERR_RANGE  (0x80)  /* first ATT error of the application */
 
 #define COLOR_BG        GFX_RGB(10, 12, 22)
 #define COLOR_PANEL     GFX_RGB(26, 30, 52)
@@ -103,6 +104,8 @@ static bool _notify_sensors, _notify_status;
 /* written by the NimBLE host thread, read by main */
 static mutex_t _lock = MUTEX_INIT;
 static char _text[DASH_TEXT_MAX + 1];
+/* the copy of the main thread, the host thread writes _text */
+static char _shown[DASH_TEXT_MAX + 1];
 static bool _text_changed;
 static uint8_t _teach_cmd, _teach_slot;
 static uint16_t _tone_freq, _tone_ms;
@@ -156,7 +159,8 @@ static int _access(uint16_t conn, uint16_t attr, struct ble_gatt_access_ctxt *ct
     (void)conn;
     (void)attr;
     (void)arg;
-    uint8_t buf[DASH_TEXT_MAX * 4];
+    /* static: the host thread has a small stack, and it is the only caller */
+    static uint8_t buf[DASH_TEXT_MAX * 4];
     uint16_t len = 0;
     const ble_uuid_t *uuid = ctxt->chr->uuid;
 
@@ -188,8 +192,16 @@ static int _access(uint16_t conn, uint16_t attr, struct ble_gatt_access_ctxt *ct
         _teach_slot = buf[1];
     }
     else if (ble_uuid_cmp(uuid, &_uuid_tone.u) == 0 && len == 4) {
-        _tone_freq = (uint16_t)(buf[0] | (buf[1] << 8));
-        _tone_ms = (uint16_t)(buf[2] | (buf[3] << 8));
+        uint16_t freq = (uint16_t)(buf[0] | (buf[1] << 8));
+        /* a high tone would toggle the speaker pin in a timer interrupt
+           every few microseconds */
+        if (freq < DASH_TONE_MIN_HZ || freq > DASH_TONE_MAX_HZ) {
+            res = DASH_ATT_ERR_RANGE;
+        }
+        else {
+            _tone_freq = freq;
+            _tone_ms = (uint16_t)(buf[2] | (buf[3] << 8));
+        }
     }
     else {
         res = BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
@@ -316,12 +328,12 @@ static void _draw_connection(void)
 static void _draw_text(void)
 {
     char line[21];
-    size_t len = strlen(_text);
+    size_t len = strlen(_shown);
 
     gfx_fill_rect(0, 56, gfx_width(), 3 * 20, COLOR_PANEL);
     for (unsigned l = 0; l < 3 && l * 20 < len; l++) {
         size_t n = len - l * 20 < 20 ? len - l * 20 : 20;
-        memcpy(line, _text + l * 20, n);
+        memcpy(line, _shown + l * 20, n);
         line[n] = '\0';
         gfx_text_centered(60 + l * 20, line, COLOR_TEXT, COLOR_PANEL, 2);
     }
@@ -400,6 +412,9 @@ static void _handle_commands(void)
     mutex_lock(&_lock);
     bool text = _text_changed;
     _text_changed = false;
+    if (text) {
+        memcpy(_shown, _text, sizeof(_shown));
+    }
     uint16_t freq = _tone_freq, ms = _tone_ms;
     _tone_freq = 0;
     if (_teach_cmd == DASH_TEACH_SAMPLES) {
@@ -410,17 +425,21 @@ static void _handle_commands(void)
     else if (_teach_cmd == DASH_TEACH_CLEAR) {
         colors_clear(_teach_slot);
         _status.counts[_teach_slot] = 0;
+        if (_teach_now == _teach_slot) {
+            _teach_left = 0;
+        }
         _teach_cmd = 0;
     }
     else if (_teach_cmd == DASH_TEACH_CLEAR_ALL) {
         colors_reset();
         memset(_status.counts, 0, sizeof(_status.counts));
+        _teach_left = 0;
         _teach_cmd = 0;
     }
     mutex_unlock(&_lock);
 
     if (text) {
-        printf("text: %s\n", _text);
+        printf("text: %s\n", _shown);
         _draw_text();
     }
     if (freq) {
@@ -472,7 +491,7 @@ int main(void)
     gpio_init(LIGHT_PIN, GPIO_OUT);
     gpio_set(LIGHT_PIN);
     colors_reset();
-    snprintf(_text, sizeof(_text), "HELLO FROM RIOT");
+    snprintf(_shown, sizeof(_shown), "HELLO FROM RIOT");
     _draw_text();
     _read_slow();
     _ble_init();
@@ -485,7 +504,8 @@ int main(void)
         uint32_t now = ztimer_now(ZTIMER_MSEC);
 
         buttons_update(&buttons);
-        _status.buttons = buttons.held & (BTN_A | BTN_B);
+        _status.buttons = (buttons.held & (BTN_A | BTN_B)) |
+                          (_teach_left ? DASH_STATUS_TEACHING : 0);
         if (_sensors.has_accel && !accel_read(_sensors.accel_g)) {
             memset(_sensors.accel_g, 0, sizeof(_sensors.accel_g));
         }

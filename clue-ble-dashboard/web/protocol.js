@@ -58,6 +58,7 @@ export function decodeStatus(view) {
     counts,
     buttonA: (buttons & 1) !== 0,
     buttonB: (buttons & 2) !== 0,
+    teaching: (buttons & 4) !== 0,
   };
 }
 

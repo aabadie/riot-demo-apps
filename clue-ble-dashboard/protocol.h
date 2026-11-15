@@ -83,8 +83,12 @@ typedef struct {
     int8_t rssi;                /**< of the connection in dBm, 0 unknown */
     uint16_t proximity;         /**< raw proximity reading */
     unsigned counts[DASH_SLOTS];/**< samples taught to each slot */
-    uint8_t buttons;            /**< bit 0: A, bit 1: B */
+    uint8_t buttons;            /**< bit 0: A, bit 1: B, bit 2: teaching */
 } dash_status_t;
+
+#define DASH_STATUS_TEACHING    (1U << 2)   /**< buttons bit: samples being taught */
+#define DASH_TONE_MIN_HZ        (50U)       /**< lowest tone played */
+#define DASH_TONE_MAX_HZ        (5000U)     /**< highest tone played */
 
 /**
  * @brief   Encode the sensors packet, DASH_SENSORS_LEN bytes

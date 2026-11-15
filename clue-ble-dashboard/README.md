@@ -50,10 +50,10 @@ Service `c1ae0001-5d8a-4a43-9a3c-6f5c2b1e7d90`, characteristics
 | XX | Access       | Content                                                    |
 |----|--------------|------------------------------------------------------------|
 | 02 | read, notify | sensors, 20 bytes, 10 Hz: acceleration (mg), temperature (0.01 C), humidity (0.01 %), pressure (10 Pa), light, red, green, blue |
-| 03 | read, notify | status, 11 bytes, 10 Hz: recognized color, its distance, RSSI, proximity, samples per color, buttons |
+| 03 | read, notify | status, 11 bytes, 10 Hz: recognized color, its distance, RSSI, proximity, samples per color, buttons and teaching flag |
 | 04 | write        | text for the screen                                        |
 | 05 | write        | teach: command (1 teach, 2 forget, 3 forget all), color    |
-| 06 | write        | note: frequency (Hz) and duration (ms), 16 bits each       |
+| 06 | write        | note: frequency (50 to 5000 Hz) and duration (ms, at most 2000), 16 bits each |
 
 All the values are little endian, see `protocol.h` and `web/protocol.js`.
 No pairing: anyone near the board can connect to it.

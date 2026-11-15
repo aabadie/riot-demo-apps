@@ -58,7 +58,7 @@ int main(void)
 
     dash_status_t a = {
         .match = 2, .distance = 1.26f, .rssi = -63, .proximity = 300,
-        .counts = { 10, 0, 20, 300, 0, 1 }, .buttons = 2,
+        .counts = { 10, 0, 20, 300, 0, 1 }, .buttons = 2 | DASH_STATUS_TEACHING,
     };
     dash_pack_status(st, &a);
     _hex("status_match", st, sizeof(st));

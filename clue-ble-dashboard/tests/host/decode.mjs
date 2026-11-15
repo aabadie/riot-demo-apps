@@ -17,8 +17,10 @@ const EXPECTED = {
     s.press === null && s.light === null && s.rgb === null,
   sensors_cold: (s) => near(s.temp, -12.34),
   status_match: (s) => s.match === 2 && near(s.distance, 1.3) && s.rssi === -63 &&
-    s.proximity === 255 && s.counts.join() === "10,0,20,255,0,1" && !s.buttonA && s.buttonB,
-  status_far: (s) => s.match === P.MATCH_FAR && s.rssi === null && !s.buttonA,
+    s.proximity === 255 && s.counts.join() === "10,0,20,255,0,1" && !s.buttonA && s.buttonB &&
+    s.teaching,
+  status_far: (s) => s.match === P.MATCH_FAR && s.rssi === null && !s.buttonA &&
+    !s.teaching,
 };
 
 let failed = false;
