@@ -54,8 +54,9 @@ received during the scan, valid and with a bad CRC.
 
 `interfere` sends broadcast frames of 111 bytes on one channel, without
 listening first, for up to 60 seconds (10 by default), a given share of the
-time (50% by default), at -17 dBm by default. Then the node scans again,
-with what it learned before.
+time (50% by default), at -17 dBm by default (-17 to +3 dBm on the
+AT86RF2xx, -40 to +4 dBm on the nRF52840). Then the node scans again, with
+what it learned before.
 
 The radio of a testbed is shared with the other experiments of the site:
 keep the test transmissions short, at low power, and between nodes close to
@@ -124,3 +125,8 @@ to 80% for a 100% duty cycle at 60 cm), as the node is idle between its
 frames. At 1.2 m, a 50% -17 dBm burst only raises the channel to 2/15:
 the scan is clearly unusual but no channel is 4 standard deviations away.
 The wideband case (Wi-Fi) has only been checked in the host test.
+
+These results were measured before the AT86RF2xx was put in basic mode:
+the test frames were then sent with CSMA-CA, after a clear channel
+assessment, and the bad CRCs were not counted. The new behavior has not
+been run on hardware yet.

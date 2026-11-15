@@ -106,7 +106,15 @@ static void _interfere(void)
 
     printf("I start channel %u duty %u%% power %d dBm for %u s\n", channel, duty,
            power, seconds);
-    radio_set_channel(channel, power);
+    if (radio_set_channel(channel, power) < 0) {
+        printf("E channel %u or power %d dBm not supported by this radio\n", channel, power);
+        state = irq_disable();
+        if (!_jam_new && _mode == MODE_INTERFERE) {
+            _mode = MODE_SCAN;
+        }
+        irq_restore(state);
+        return;
+    }
     while (_mode == MODE_INTERFERE && !_jam_new &&
            (int32_t)(end - ztimer_now(ZTIMER_MSEC)) > 0) {
         if (radio_send_test_frame() == 0) {

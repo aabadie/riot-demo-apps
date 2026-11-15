@@ -38,6 +38,9 @@
 
 static ieee802154_dev_t _radio;
 static mutex_t _done = MUTEX_INIT_LOCKED;
+/* the AT86RF2xx also reports the CCA polled by ieee802154_radio_cca(), only
+   a CCA that is waited for unlocks _done */
+static volatile bool _wait_cca;
 static volatile unsigned _rx_pending;
 static volatile unsigned _frames;
 static volatile unsigned _crc_errors;
@@ -52,8 +55,12 @@ static void _radio_cb(ieee802154_dev_t *dev, ieee802154_trx_ev_t event)
     (void)dev;
     switch (event) {
     case IEEE802154_RADIO_CONFIRM_TX_DONE:
-    case IEEE802154_RADIO_CONFIRM_CCA:
         mutex_unlock(&_done);
+        break;
+    case IEEE802154_RADIO_CONFIRM_CCA:
+        if (_wait_cca) {
+            mutex_unlock(&_done);
+        }
         break;
     case IEEE802154_RADIO_INDICATION_RX_DONE:
         _frames++;
@@ -108,6 +115,11 @@ int radio_init(void)
         return res;
     }
     ieee802154_radio_set_frame_filter_mode(&_radio, IEEE802154_FILTER_ACCEPT);
+    /* the test frames are sent without listening first */
+    res = ieee802154_radio_set_csma_params(&_radio, NULL, -1);
+    if (res < 0) {
+        return res;
+    }
     res = ieee802154_radio_set_cca_mode(&_radio, IEEE802154_CCA_MODE_ED_THRESHOLD);
     if (res < 0) {
         return res;
@@ -141,12 +153,17 @@ int radio_busy(int8_t threshold_dbm)
         return res;
     }
     if (ieee802154_radio_has_irq_cca_done(&_radio)) {
+        _wait_cca = true;
         res = ieee802154_radio_request_cca(&_radio);
         if (res < 0) {
+            _wait_cca = false;
             return res;
         }
         mutex_lock(&_done);
+        _wait_cca = false;
         res = ieee802154_radio_confirm_cca(&_radio);
+        /* the nRF52840 radio stays idle after a CCA, receive again */
+        ieee802154_radio_set_rx(&_radio);
     }
     else {
         res = ieee802154_radio_cca(&_radio);
@@ -174,7 +191,7 @@ int radio_send_test_frame(void)
     const uint8_t src[2] = { 0xfe, 0xca };
     const uint8_t dst[2] = { 0xff, 0xff };
     le_uint16_t pan = byteorder_htols(TEST_PANID);
-    ieee802154_tx_info_t info;
+    ieee802154_tx_info_t info = { .status = TX_STATUS_SUCCESS };
     int res;
 
     memset(payload, 0x55, sizeof(payload));
@@ -196,15 +213,20 @@ int radio_send_test_frame(void)
     if (res < 0) {
         return res;
     }
+    /* forget an unlock left by an event that was not waited for */
+    mutex_trylock(&_done);
     while ((res = ieee802154_radio_request_transmit(&_radio)) == -EBUSY) {}
     if (res < 0) {
         ieee802154_radio_set_rx(&_radio);
         return res;
     }
     mutex_lock(&_done);
-    res = ieee802154_radio_confirm_transmit(&_radio, &info);
+    while ((res = ieee802154_radio_confirm_transmit(&_radio, &info)) == -EAGAIN) {}
     ieee802154_radio_set_rx(&_radio);
-    return res < 0 ? res : 0;
+    if (res < 0) {
+        return res;
+    }
+    return info.status == TX_STATUS_MEDIUM_BUSY ? -EBUSY : 0;
 }
 
 uint32_t radio_test_frame_us(void)
