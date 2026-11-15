@@ -77,6 +77,13 @@ void sound_analyze(const int16_t *pcm, sound_frame_t *out);
 sound_event_t sound_detect(const sound_frame_t *frame);
 
 /**
+ * @brief   Skip the next frame, instead of sound_detect(), while the board
+ *          makes a sound of its own: the event in progress is dropped, the
+ *          noise floor is kept
+ */
+void sound_skip(void);
+
+/**
  * @brief   Frames of the last event, valid after SOUND_END
  *
  * @param[out] first    index of the first frame of the event, counted from

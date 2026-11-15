@@ -74,7 +74,9 @@ void sound_analyze(const int16_t *pcm, sound_frame_t *out)
     float total = 0, weighted = 0, log_sum = 0, best = -1;
     unsigned best_bin = 0;
     for (unsigned i = 1; i < BINS; i++) {
-        /* scaled so that a full scale sine is about 0 dB */
+        /* a full scale sine sums to about +26 dB: 3 N / 2 for a Hann
+           window of N = 256 samples. The features and the trained model
+           use this scale */
         power[i] = (re[i] * re[i] + im[i] * im[i]) * 16.0f / SOUND_FRAME + 1e-9f;
         total += power[i];
         weighted += power[i] * i * BIN_HZ;
@@ -132,12 +134,24 @@ sound_event_t sound_detect(const sound_frame_t *frame)
         _quiet++;
     }
     if (_quiet >= SOUND_STOP_FRAMES || now - _start + 1 >= SOUND_MAX_FRAMES) {
+        if (_quiet < SOUND_STOP_FRAMES) {
+            /* still loud after the longest event: the noise got louder,
+               it becomes the floor so that it does not start another
+               event at once */
+            _floor = level;
+        }
         _in_event = false;
         _event_first = _start;
         _event_len = _last_loud - _start + 1;
         return SOUND_END;
     }
     return SOUND_NONE;
+}
+
+void sound_skip(void)
+{
+    _frame_no++;
+    _in_event = false;
 }
 
 unsigned sound_event(unsigned *first)

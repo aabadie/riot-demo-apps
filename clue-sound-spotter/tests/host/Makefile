@@ -4,10 +4,17 @@
 # untouched.
 PYTHON ?= $(abspath ../../../.venv/bin/python)
 OUT := $(CURDIR)/out
+EMLEARN ?= ../../../../RIOT-drivers/build/pkg/emlearn/emlearn
+CFLAGS += -O2 -Wall -Wextra -Werror -I../.. -I$(EMLEARN)
 
-test:
+test: $(OUT)/test_detect
+	$(OUT)/test_detect
 	mkdir -p $(OUT)
 	$(PYTHON) ../../tools/train.py --synthetic --output $(OUT)/model.h --min-accuracy 0.95
+
+$(OUT)/test_detect: test_detect.c ../../sound.c ../../sound_eml.c ../../sound.h
+	mkdir -p $(OUT)
+	$(CC) $(CFLAGS) -o $@ test_detect.c ../../sound.c ../../sound_eml.c -lm
 
 clean:
 	rm -rf $(OUT)

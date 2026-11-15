@@ -61,5 +61,7 @@ events it recognizes.
 
     make -C tests/host
 
-trains on synthetic sounds into `tests/host/out/` and checks the accuracy
-and the agreement between C and Python.
+checks the event detector (one event per clap, no chain of events in a
+louder steady noise, the board's own sounds skipped), then trains on
+synthetic sounds into `tests/host/out/` and checks the accuracy and the
+agreement between C and Python.

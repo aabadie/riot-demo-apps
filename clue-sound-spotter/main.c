@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "irq.h"
 #include "periph/pdm.h"
 #include "thread.h"
 #include "thread_flags.h"
@@ -47,8 +48,9 @@
 #define FRAME_MS        (40U)
 #define LONG_PRESS_MS   (1000U)
 #define MIN_PROBA       (0.5f)
+#define MUTE_MS         (150U)      /* microphone ignored after a button or a beep */
 #define METER_MIN_DB    (-90.0f)
-#define METER_MAX_DB    (-10.0f)
+#define METER_MAX_DB    (26.0f)     /* a full scale sine */
 
 #define COLOR_BG        GFX_RGB(8, 12, 20)
 #define COLOR_PANEL     GFX_RGB(24, 32, 52)
@@ -80,12 +82,19 @@ static volatile bool _event_pcm_ready;
 static volatile float _level = -100, _floor = -100;
 static volatile bool _in_event;
 
-/* results, read by the main thread */
+/* results, written by the DSP thread with the interrupts off, copied by
+   the main thread the same way */
+typedef struct {
+    int best;
+    float proba;
+    float pitch;
+    unsigned onsets;
+} result_t;
+
 static volatile unsigned _result_seq;
-static volatile int _result;
-static volatile float _result_proba;
-static volatile float _result_pitch;
-static volatile unsigned _result_onsets;
+static result_t _result;
+/* the microphone is ignored until then */
+static volatile uint32_t _mute_until;
 
 static volatile bool _record;
 static int _rec_label;
@@ -145,11 +154,13 @@ static void _event_done(void)
         return;
     }
     int best = sound_classify(features, proba);
-    _result = best;
-    _result_proba = best < 0 ? 0 : proba[best];
-    _result_pitch = pitch / n;
-    _result_onsets = onsets + 1;
+    unsigned state = irq_disable();
+    _result.best = best;
+    _result.proba = best < 0 ? 0 : proba[best];
+    _result.pitch = pitch / n;
+    _result.onsets = onsets + 1;
     _result_seq++;
+    irq_restore(state);
 }
 
 static void *_dsp_thread(void *arg)
@@ -172,6 +183,11 @@ static void *_dsp_thread(void *arg)
             sound_frame_t *f = &_frames[index % RING_FRAMES];
             sound_analyze(_pcm[slot], f);
             _level = f->level;
+            if ((int32_t)(_mute_until - ztimer_now(ZTIMER_MSEC)) > 0) {
+                sound_skip();
+                _in_event = false;
+                continue;
+            }
             sound_event_t ev = sound_detect(f);
             _floor = sound_floor();
             _in_event = ev == SOUND_START ? true : (ev == SOUND_END ? false : _in_event);
@@ -278,34 +294,37 @@ static void _screen(void)
 static void _show_result(void)
 {
     char text[32];
-    int r = _result;
+    unsigned state = irq_disable();
+    result_t res = _result;
+    irq_restore(state);
+    int r = res.best;
 
-    if (r < 0 || _result_proba < MIN_PROBA) {
-        snprintf(text, sizeof(text), "NOT SURE %d%%", (int)(_result_proba * 100));
+    if (r < 0 || res.proba < MIN_PROBA) {
+        snprintf(text, sizeof(text), "NOT SURE %d%%", (int)(res.proba * 100));
         _message("???", text, COLOR_DIM);
-        printf("S UNKNOWN %d\n", (int)(_result_proba * 100));
+        printf("S UNKNOWN %d\n", (int)(res.proba * 100));
         return;
     }
-    printf("S %s %d\n", _names[r], (int)(_result_proba * 100 + 0.5f));
+    printf("S %s %d\n", _names[r], (int)(res.proba * 100 + 0.5f));
     _count[r]++;
     switch (r) {
     case 0:
         _lamp = !_lamp;
         _lamp_draw();
         snprintf(text, sizeof(text), "LAMP %s  %d%%", _lamp ? "ON" : "OFF",
-                 (int)(_result_proba * 100 + 0.5f));
+                 (int)(res.proba * 100 + 0.5f));
         break;
     case 1:
         _lamp_color = (_lamp_color + 1) % ARRAY_SIZE(_lamp_colors);
         _lamp_draw();
         snprintf(text, sizeof(text), "NEW COLOR  %d%%",
-                 (int)(_result_proba * 100 + 0.5f));
+                 (int)(res.proba * 100 + 0.5f));
         break;
     case 2:
-        snprintf(text, sizeof(text), "PITCH %d HZ", (int)_result_pitch);
+        snprintf(text, sizeof(text), "PITCH %d HZ", (int)res.pitch);
         break;
     default:
-        snprintf(text, sizeof(text), "%u KNOCKS, WHO IS THERE?", _result_onsets);
+        snprintf(text, sizeof(text), "%u KNOCKS, WHO IS THERE?", res.onsets);
         break;
     }
     _message(_names[r], text, _lamp_colors[r % ARRAY_SIZE(_lamp_colors)]);
@@ -334,6 +353,7 @@ static void _send_recording(void)
     puts("");
     _event_pcm_ready = false;
     _rec_count[_rec_label]++;
+    _mute_until = ztimer_now(ZTIMER_MSEC) + 30 + MUTE_MS;
     tone_beep(NOTE_A5, 30);
     _screen();
 }
@@ -367,6 +387,10 @@ int main(void)
     while (1) {
         uint32_t now = ztimer_now(ZTIMER_MSEC);
         buttons_update(&_buttons);
+        if (_buttons.pressed || _buttons.released) {
+            /* the click of a button is not a sound to record or spot */
+            _mute_until = now + MUTE_MS;
+        }
 
         if (_buttons.pressed & BTN_A && !_record) {
             _lamp = false;
