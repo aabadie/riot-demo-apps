@@ -74,6 +74,8 @@ static float _prev_y;
 static volatile float _level_db;
 static volatile bool _in_speech;
 static volatile int _teach_word = -1;
+/* _teach_word when the utterance started */
+static int _utterance_teach = -1;
 static volatile int _result_word = -1;
 static volatile int _result_best = -1;
 static volatile float _result_dist;
@@ -296,6 +298,10 @@ static voice_event_t _utterance_done(void)
     _quantize(&_current, &_current_q);
 
     int teach = _teach_word;
+    if (teach != _utterance_teach) {
+        /* the word to teach changed during the utterance */
+        return VOICE_EVENT_NONE;
+    }
     if (teach >= 0) {
         unsigned slot = _store.next_example[teach];
         _store.examples[teach][slot] = _current_q;
@@ -353,6 +359,7 @@ voice_event_t voice_process(const int16_t *frame)
         if (_above >= VAD_START_FEATS) {
             _in_speech = true;
             _below = 0;
+            _utterance_teach = _teach_word;
             /* start with the frames before the onset */
             _current.len = 0;
             for (unsigned i = PREROLL - _preroll_count; i < PREROLL; i++) {
@@ -364,17 +371,33 @@ voice_event_t voice_process(const int16_t *frame)
 
     memcpy(_current.feats[_current.len++], feat, sizeof(feat));
     _below = (db < _floor_db + VAD_STOP_DB) ? _below + 1 : 0;
-    if (_below >= VAD_STOP_FEATS || _current.len >= MAX_FEATS) {
+    if (_current.len >= MAX_FEATS) {
+        /* longer than a word: a noise that got louder, which becomes the
+           new floor */
+        _floor_db = db;
+        _in_speech = false;
+        _above = 0;
+        _preroll_count = 0;
+        return VOICE_EVENT_NONE;
+    }
+    if (_below >= VAD_STOP_FEATS) {
         /* drop most of the trailing silence */
-        if (_below >= VAD_STOP_FEATS) {
-            _current.len -= VAD_STOP_FEATS - 2;
-        }
+        _current.len -= VAD_STOP_FEATS - 2;
         _in_speech = false;
         _above = 0;
         _preroll_count = 0;
         return _utterance_done();
     }
     return VOICE_EVENT_NONE;
+}
+
+void voice_restart(void)
+{
+    _in_speech = false;
+    _above = 0;
+    _below = 0;
+    _preroll_count = 0;
+    _current.len = 0;
 }
 
 void voice_teach(int word)

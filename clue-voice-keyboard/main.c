@@ -55,6 +55,8 @@
 #define LONG_PRESS_MS   (1000U)
 #define FORGET_MS       (3000U)
 #define FLAG_FRAME      (1U << 0)
+#define NUM_FRAMES      (8U)        /* 128 ms of audio, a classification takes ~100 ms */
+#define ECHO_MS         (80U)       /* after a sound of the speaker */
 #define TEXT_LEN        (64U)
 #define TEXT_SHOWN      (19U)
 
@@ -182,14 +184,18 @@ FLASH_WRITABLE_INIT(_flash_store, STORE_PAGES);
 static uint32_t _page[FLASHPAGE_SIZE / sizeof(uint32_t)];
 static mutex_t _voice_lock = MUTEX_INIT;
 
-/* write the pages that changed, about 85 ms each */
+/* write the pages that changed, about 85 ms each. The first page, with the
+   magic and the number of examples, is written last: after a reset in the
+   middle, the old header comes with at most one new example, in the slot
+   of the old one it replaced */
 static void _save(void)
 {
     unsigned first = flashpage_page(_flash_store);
     size_t len = sizeof(voice_store_t);
     unsigned written = 0;
 
-    for (size_t off = 0; off < len; off += FLASHPAGE_SIZE) {
+    for (unsigned i = 1; i <= STORE_PAGES; i++) {
+        size_t off = (i % STORE_PAGES) * FLASHPAGE_SIZE;
         size_t n = len - off < FLASHPAGE_SIZE ? len - off : FLASHPAGE_SIZE;
         memset(_page, 0xff, sizeof(_page));
         mutex_lock(&_voice_lock);
@@ -209,10 +215,13 @@ static void _save(void)
 
 /* --- audio side ---------------------------------------------------------- */
 
-static int16_t _frames[2][VOICE_FRAME_LEN];
-static volatile unsigned _fill_frame;
+/* a ring of frames: the callback fills frame _done % NUM_FRAMES, the voice
+   thread reads the ones before */
+static int16_t _frames[NUM_FRAMES][VOICE_FRAME_LEN];
+static volatile unsigned _done;
 static volatile unsigned _fill_pos;
-static volatile int _ready_frame = -1;
+/* the microphone is ignored until then, the speaker is playing */
+static volatile uint32_t _mute_until;
 static kernel_pid_t _dsp_pid = KERNEL_PID_UNDEF;
 static volatile unsigned _result_seq;
 static volatile unsigned _taught_seq;
@@ -222,44 +231,55 @@ static void _pdm_cb(void *arg, int16_t *buf)
 {
     (void)arg;
     unsigned pos = _fill_pos;
-    unsigned frame = _fill_frame;
 
     for (unsigned i = 0; i < PDM_BUF_SIZE; i++) {
-        _frames[frame][pos++] = buf[i];
+        _frames[_done % NUM_FRAMES][pos++] = buf[i];
         if (pos == VOICE_FRAME_LEN) {
-            _ready_frame = (int)frame;
-            frame ^= 1;
+            _done++;
             pos = 0;
             thread_flags_set(thread_get(_dsp_pid), FLAG_FRAME);
         }
     }
     _fill_pos = pos;
-    _fill_frame = frame;
 }
 
 static void *_dsp_thread(void *arg)
 {
     (void)arg;
     unsigned skip = SKIP_FRAMES;
+    unsigned read = 0;
+    bool muted = false;
 
     while (1) {
         thread_flags_wait_any(FLAG_FRAME);
-        int frame = _ready_frame;
-        if (frame < 0) {
-            continue;
-        }
-        if (skip) {
-            skip--;
-            continue;
-        }
-        mutex_lock(&_voice_lock);
-        voice_event_t event = voice_process(_frames[frame]);
-        mutex_unlock(&_voice_lock);
-        if (event == VOICE_EVENT_TAUGHT) {
-            _taught_seq++;
-        }
-        else if (event == VOICE_EVENT_RESULT) {
-            _result_seq++;
+        while (read != _done) {
+            if (_done - read > NUM_FRAMES - 1) {
+                /* too late, the oldest frames are being overwritten */
+                read = _done - (NUM_FRAMES - 1);
+            }
+            const int16_t *frame = _frames[read % NUM_FRAMES];
+            read++;
+            if (skip) {
+                skip--;
+                continue;
+            }
+            if ((int32_t)(_mute_until - ztimer_now(ZTIMER_MSEC)) > 0) {
+                muted = true;
+                continue;
+            }
+            mutex_lock(&_voice_lock);
+            if (muted) {
+                muted = false;
+                voice_restart();
+            }
+            voice_event_t event = voice_process(frame);
+            mutex_unlock(&_voice_lock);
+            if (event == VOICE_EVENT_TAUGHT) {
+                _taught_seq++;
+            }
+            else if (event == VOICE_EVENT_RESULT) {
+                _result_seq++;
+            }
         }
     }
     return NULL;
@@ -310,7 +330,8 @@ static void _draw_grid(void)
 
 static void _big(const char *word, const char *detail, uint16_t color)
 {
-    gfx_fill_rect(0, 26, gfx_width(), 60, COLOR_BG);
+    /* down to the status line, at y = 74 */
+    gfx_fill_rect(0, 26, gfx_width(), 48, COLOR_BG);
     gfx_text_centered(30, word, color, COLOR_BG, 3);
     if (detail) {
         gfx_text_centered(60, detail, COLOR_DIM, COLOR_BG, 1);
@@ -340,9 +361,11 @@ static void _draw_text(void)
     char shown[TEXT_SHOWN + 2];
     unsigned start = _text_len > TEXT_SHOWN ? _text_len - TEXT_SHOWN : 0;
 
-    snprintf(shown, sizeof(shown), "%s_", _text + start);
+    snprintf(shown, sizeof(shown), "%s", _text + start);
     gfx_fill_rect(0, 202, gfx_width(), 20, COLOR_PANEL);
     gfx_text(4, 205, shown, COLOR_TEXT, COLOR_PANEL, 2);
+    /* the cursor, the font has no underscore */
+    gfx_fill_rect(4 + gfx_text_width(shown, 2), 219, 10, 2, COLOR_TEXT);
 }
 
 static void _help(void)
@@ -418,11 +441,21 @@ static void _text_add(char ch)
     _draw_text();
 }
 
+/* ignore the microphone for the next ms, and the echo after it */
+static void _mute_mic(unsigned ms)
+{
+    _mute_until = ztimer_now(ZTIMER_MSEC) + ms + ECHO_MS;
+}
+
 static void _on_taught(void)
 {
     static const tone_note_t ok[] = { { NOTE_E6, 40 }, { NOTE_REST, 30 }, { NOTE_E6, 40 } };
 
+    /* the CPU stalls while the flash is written, then the speaker plays: none
+       of it is the next example */
+    _mute_mic(1000);
     _save();
+    _mute_mic(110);
     tone_effect(ok, ARRAY_SIZE(ok));
     if (!_teach_mode) {
         return;
@@ -455,6 +488,7 @@ static void _on_result(uint32_t now)
         int best = voice_result_best();
         snprintf(detail, sizeof(detail), "NOT SURE, %s?", best >= 0 ? keys_words[best].name : "");
         _big("?", detail, COLOR_DIM);
+        _mute_mic(40);
         tone_beep(NOTE_C4, 40);
         return;
     }
@@ -478,6 +512,7 @@ static void _on_result(uint32_t now)
              (int)dist, (int)(dist * 100) % 100);
     _big(keys_words[w].name, detail, COLOR_HIT);
     printf("K %s %c\n", keys_words[w].name, ch >= ' ' ? ch : '.');
+    _mute_mic(30);
     tone_beep(NOTE_A5, 30);
 
     int old = _hit;
@@ -572,7 +607,9 @@ int main(void)
                 mutex_lock(&_voice_lock);
                 voice_forget_all();
                 mutex_unlock(&_voice_lock);
+                _mute_mic(1000);
                 _save();
+                _mute_mic(300);
                 tone_beep(NOTE_C4, 300);
                 _draw_grid();
                 _set_mode(true);

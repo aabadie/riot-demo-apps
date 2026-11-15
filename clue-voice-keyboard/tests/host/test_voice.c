@@ -287,6 +287,42 @@ int main(void)
            reloaded.rejected, reloaded.wrong);
     printf("store: %zu bytes\n", sizeof(voice_store_t));
 
+    /* a word taught while the word to teach changes in its middle is
+       dropped */
+    _word(5);
+    unsigned before = voice_num_examples(7);
+    voice_teach(5);
+    size_t half = _len / 2;
+    size_t full = _len;
+    _len = half - half % VOICE_FRAME_LEN;
+    _feed();
+    voice_teach(7);
+    memmove(_signal, _signal + _len, (full - _len) * sizeof(_signal[0]));
+    _len = full - _len;
+    voice_event_t changed = _feed();
+    voice_teach(-1);
+    if (changed != VOICE_EVENT_NONE || voice_num_examples(7) != before) {
+        puts("FAIL: the word changed during the utterance, it was still taught");
+        return 1;
+    }
+    puts("word changed during the utterance: dropped");
+
+    /* the noise gets 20 dB louder and stays so: at most one utterance, then
+       the floor follows */
+    unsigned events = _taught + _results;
+    _len = MAX_SAMPLES;
+    for (size_t i = 0; i < _len; i++) {
+        _signal[i] = (int16_t)(300.0f * _noise());
+    }
+    _feed();
+    _feed();
+    unsigned loud = _taught + _results - events;
+    if (loud > 1) {
+        printf("FAIL: %u utterances in steady loud noise\n", loud);
+        return 1;
+    }
+    printf("steady loud noise: %u utterance\n", loud);
+
     unsigned total = TESTS * VOICE_NUM_WORDS;
     if (score.wrong > total / 50 || score.correct < total * 9 / 10 ||
         reloaded.correct < total * 9 / 10 || score.unknown_accepted > TESTS) {

@@ -97,9 +97,15 @@ typedef struct {
 } voice_store_t;
 
 /**
- * @brief   Magic number of a valid store, changes with its layout
+ * @brief   Magic number of a valid store, changes with its layout: the
+ *          number of words, of examples, of mel bands and of features
  */
-#define VOICE_MAGIC         (0x564b0100UL + VOICE_NUM_WORDS)
+#define VOICE_MAGIC         (0x56000000UL | ((uint32_t)VOICE_NUM_WORDS << 16) | \
+                             ((uint32_t)VOICE_NUM_EXAMPLES << 12) | \
+                             ((uint32_t)VOICE_NUM_MELS << 6) | VOICE_MAX_FEATS)
+
+_Static_assert(VOICE_NUM_WORDS < 256 && VOICE_NUM_EXAMPLES < 16 && VOICE_NUM_MELS < 64 &&
+               VOICE_MAX_FEATS < 64, "VOICE_MAGIC: fields too large");
 
 /**
  * @brief   Prepare the FFT and the mel filterbank, forget all the words
@@ -115,8 +121,16 @@ voice_event_t voice_process(const int16_t *frame);
 
 /**
  * @brief   Record the next utterance as an example of @p word, -1 cancels
+ *
+ * An utterance started before the call is dropped, not taught.
  */
 void voice_teach(int word);
+
+/**
+ * @brief   Drop the utterance in progress, for example while the speaker
+ *          plays: the noise floor is kept
+ */
+void voice_restart(void);
 
 /**
  * @brief   Word waiting for an example, -1 when classifying
