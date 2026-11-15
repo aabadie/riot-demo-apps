@@ -11,16 +11,38 @@ and printed as an image: the printer has no QR code command of its own.
 
 ## Wiring
 
-| Printer          | CLUE                                                  |
-|------------------|-------------------------------------------------------|
-| RX (data in)     | pad 1 of the edge connector (TX, P0.05)               |
-| GND              | GND                                                   |
-| DTR, optional    | pad 2 (P0.03), with `PRINTER_DTR='GPIO_PIN(0,3)'`      |
-| power            | a 5 to 9 V supply of at least 1.5 A, not the CLUE     |
+![Wiring of the CLUE and the printer](wiring.svg)
 
-The printer reads 3.3 V levels, its TX pin stays unconnected. Hold its
-button while powering it to print its test page: it gives its baud rate,
-19200 by default here, else set `PRINTER_BAUDRATE=9600`.
+| Wire            | From                              | To                          |
+|-----------------|-----------------------------------|-----------------------------|
+| yellow, data    | CLUE pad 1 (TX, P0.05)            | printer RX (data in)        |
+| black, ground   | CLUE pad GND                      | printer GND of the data connector |
+| blue, optional  | CLUE pad 2 (P0.03), see below     | printer DTR                 |
+| red, power      | supply +, 5 to 9 V, 1.5 A or more | printer VH                  |
+| black, power    | supply -                          | printer GND of the power connector |
+
+The colors are the ones of the drawing, the cable of the printer may have
+others: follow the labels of its connectors.
+
+No soldering: the large pads 0, 1, 2, 3V and GND of the CLUE have holes
+for alligator clips, use clips with a male jumper pin at the other end
+for the connectors of the printer. A micro:bit edge connector breakout
+also fits, the CLUE has the edge connector of the micro:bit.
+
+The data wire needs no level shifter: the printer reads 3.3 V levels. Its
+TX pin stays unconnected, the board only sends.
+
+Never power the printer from the CLUE: it draws well over 1 A while
+printing. Its own supply and the CLUE share the ground through the printer.
+
+DTR is optional, it makes the long codes print faster: connect it only
+through the divider of the drawing, 10 kOhm in series and 20 kOhm from
+pad 2 to GND, the printer may drive it at 5 V and the pins of the CLUE take
+at most 3.6 V. Then build with `PRINTER_DTR='GPIO_PIN(0,3)'`.
+
+Hold the button of the printer while powering it to print its test page:
+it gives its baud rate, 19200 by default here, else set
+`PRINTER_BAUDRATE=9600`.
 
 Without DTR the board waits after each part of the image for the time the
 printer takes to print it, the timings of the Arduino library of Adafruit:

@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" width="800" height="480"
+     font-family="Helvetica, Arial, sans-serif" font-size="13">
+  <title>Wiring of the CLUE and the Mini Thermal Printer</title>
+  <rect width="800" height="480" fill="#ffffff"/>
+
+  <!-- CLUE, front -->
+  <rect x="40" y="40" width="300" height="236" rx="18" fill="#2b2f3a"/>
+  <rect x="130" y="62" width="120" height="120" fill="#10131a" stroke="#555b6b"/>
+  <text x="190" y="127" fill="#8a90a2" text-anchor="middle">screen</text>
+  <circle cx="85" cy="122" r="14" fill="#555b6b"/>
+  <text x="85" y="127" fill="#ffffff" text-anchor="middle">A</text>
+  <circle cx="295" cy="122" r="14" fill="#555b6b"/>
+  <text x="295" y="127" fill="#ffffff" text-anchor="middle">B</text>
+  <text x="190" y="212" fill="#ffffff" text-anchor="middle" font-size="15">Adafruit CLUE (front)</text>
+
+  <!-- edge connector: the five large pads, small fingers between -->
+  <rect x="40" y="250" width="300" height="70" fill="#2b2f3a"/>
+  <g fill="#c9a640">
+    <rect x="94" y="292" width="6" height="26"/>
+    <rect x="104" y="292" width="6" height="26"/>
+    <rect x="158" y="292" width="6" height="26"/>
+    <rect x="168" y="292" width="6" height="26"/>
+    <rect x="222" y="292" width="6" height="26"/>
+    <rect x="232" y="292" width="6" height="26"/>
+    <rect x="270" y="292" width="6" height="26"/>
+    <rect x="280" y="292" width="6" height="26"/>
+    <rect x="48" y="262" width="40" height="56" rx="4"/>
+    <rect x="112" y="262" width="40" height="56" rx="4"/>
+    <rect x="176" y="262" width="40" height="56" rx="4"/>
+    <rect x="240" y="262" width="26" height="56" rx="4"/>
+    <rect x="292" y="262" width="44" height="56" rx="4"/>
+  </g>
+  <g fill="#ffffff">
+    <circle cx="68" cy="280" r="7"/>
+    <circle cx="132" cy="280" r="7"/>
+    <circle cx="196" cy="280" r="7"/>
+    <circle cx="253" cy="280" r="6"/>
+    <circle cx="314" cy="280" r="7"/>
+  </g>
+  <g fill="#ffffff" text-anchor="middle" font-weight="bold" font-size="12">
+    <text x="68" y="256">0</text>
+    <text x="132" y="256">1</text>
+    <text x="196" y="256">2</text>
+    <text x="253" y="256">3V</text>
+    <text x="314" y="256">GND</text>
+  </g>
+  <text x="40" y="30" fill="#444444">Clip on the large pads: no soldering</text>
+
+  <!-- printer, back -->
+  <rect x="480" y="40" width="240" height="250" rx="10" fill="#e8e8e8" stroke="#888888"/>
+  <text x="600" y="66" fill="#222222" text-anchor="middle" font-size="15">Mini Thermal Printer</text>
+  <text x="600" y="84" fill="#666666" text-anchor="middle">(Adafruit 597, back)</text>
+  <text x="496" y="108" fill="#666666" font-size="11">DATA</text>
+  <g fill="#ffffff" stroke="#222222" stroke-width="2">
+    <circle cx="480" cy="125" r="6"/>
+    <circle cx="480" cy="155" r="6"/>
+    <circle cx="480" cy="185" r="6"/>
+    <circle cx="480" cy="215" r="6"/>
+    <circle cx="720" cy="235" r="6"/>
+    <circle cx="720" cy="265" r="6"/>
+  </g>
+  <g fill="#222222">
+    <text x="494" y="130">GND</text>
+    <text x="494" y="160">RX (data in)</text>
+    <text x="494" y="190" fill="#999999">TX, not connected</text>
+    <text x="494" y="220">DTR, optional</text>
+    <text x="706" y="212" fill="#666666" font-size="11" text-anchor="end">POWER</text>
+    <text x="706" y="240" text-anchor="end">VH 5 to 9 V</text>
+    <text x="706" y="270" text-anchor="end">GND</text>
+  </g>
+
+  <!-- supply -->
+  <rect x="560" y="380" width="200" height="64" rx="6" fill="#3a3a3a"/>
+  <text x="660" y="418" fill="#ffffff" text-anchor="middle">5 to 9 V supply, 1.5 A or more</text>
+  <circle cx="600" cy="380" r="7" fill="#222222" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="710" cy="380" r="7" fill="#d62828" stroke="#ffffff" stroke-width="2"/>
+  <text x="600" y="400" fill="#ffffff" text-anchor="middle" font-weight="bold">-</text>
+  <text x="710" y="400" fill="#ffffff" text-anchor="middle" font-weight="bold">+</text>
+
+  <g fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- ground, CLUE GND to printer data GND -->
+    <path d="M314 280 V345 H410 V125 H480" stroke="#222222"/>
+    <!-- data, CLUE pad 1 (TX, P0.05) to printer RX -->
+    <path d="M132 280 V375 H430 V155 H480" stroke="#f2c200"/>
+    <!-- power -->
+    <path d="M720 235 H770 V360 H710 V380" stroke="#d62828"/>
+    <path d="M720 265 H750 V345 H600 V380" stroke="#222222"/>
+    <!-- optional DTR, through a divider: a gap where it crosses the data wire -->
+    <path d="M196 280 V430 H450 V215 H480" stroke="#ffffff" stroke-width="11"/>
+    <path d="M196 280 V430 H450 V215 H480" stroke="#1f6fd1" stroke-dasharray="10 7"/>
+  </g>
+
+  <!-- divider of the DTR wire: 10k in series, 20k to ground -->
+  <rect x="300" y="420" width="44" height="20" fill="#ffffff" stroke="#1f6fd1" stroke-width="2"/>
+  <text x="322" y="435" fill="#1f6fd1" text-anchor="middle" font-size="11">10k</text>
+  <path d="M250 430 V448" stroke="#1f6fd1" stroke-width="3" fill="none"/>
+  <rect x="240" y="448" width="20" height="18" fill="#ffffff" stroke="#1f6fd1" stroke-width="2"/>
+  <text x="272" y="462" fill="#1f6fd1" font-size="11">20k to GND</text>
+  <circle cx="250" cy="430" r="4" fill="#1f6fd1"/>
+
+</svg>
