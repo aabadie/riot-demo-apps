@@ -209,6 +209,45 @@ static void _cell_center(int cx, int cy, int *x, int *y)
     *y = _oy + cy * _cell + (_cell + WALL) / 2;
 }
 
+/* Mark the cells of the only path from the start to the goal, with a
+   breadth first search in the perfect maze */
+static void _mark_path(bool on_path[MAX_ROWS][MAX_COLS], int goal_x, int goal_y)
+{
+    static uint8_t queue[MAX_COLS * MAX_ROWS];
+    static int16_t from[MAX_COLS * MAX_ROWS];
+    static const int dx[] = { 0, 1, 0, -1 };
+    static const int dy[] = { -1, 0, 1, 0 };
+    static const uint8_t wall[] = { WALL_N, WALL_E, WALL_S, WALL_W };
+    unsigned head = 0, tail = 0;
+
+    for (int i = 0; i < _cols * _rows; i++) {
+        from[i] = -1;
+    }
+    memset(on_path, 0, sizeof(bool) * MAX_ROWS * MAX_COLS);
+    from[0] = 0;
+    queue[tail++] = 0;
+    while (head < tail) {
+        int cur = queue[head++];
+        int cx = cur % _cols, cy = cur / _cols;
+        for (int d = 0; d < 4; d++) {
+            if (_cells[cy][cx] & wall[d]) {
+                continue;
+            }
+            int next = (cy + dy[d]) * _cols + cx + dx[d];
+            if (from[next] < 0) {
+                from[next] = (int16_t)cur;
+                queue[tail++] = (uint8_t)next;
+            }
+        }
+    }
+    for (int cur = goal_y * _cols + goal_x; ; cur = from[cur]) {
+        on_path[cur / _cols][cur % _cols] = true;
+        if (cur == 0) {
+            break;
+        }
+    }
+}
+
 /* Carve a perfect maze with an iterative depth first search */
 static void _generate(void)
 {
@@ -273,6 +312,11 @@ static void _generate(void)
     _goal.cy = _rows - 1;
     _cell_center(_goal.cx, _goal.cy, &_goal.x, &_goal.y);
 
+    /* the ball goes through the middle of the corridors, a trap on the only
+       path to the goal could not be avoided */
+    static bool on_path[MAX_ROWS][MAX_COLS];
+    _mark_path(on_path, _goal.cx, _goal.cy);
+
     _num_traps = 0;
     unsigned wanted = (_level >= 3) ? _level - 2 : 0;
     if (wanted > MAX_TRAPS) {
@@ -280,8 +324,8 @@ static void _generate(void)
     }
     for (unsigned tries = 0; _num_traps < wanted && tries < 100; tries++) {
         int cx = random_uint32_range(0, _cols), cy = random_uint32_range(0, _rows);
-        /* keep the start area and the goal free */
-        if ((cx < 2 && cy < 2) || (cx == _goal.cx && cy == _goal.cy)) {
+        /* keep the start area and the path to the goal free */
+        if ((cx < 2 && cy < 2) || on_path[cy][cx]) {
             continue;
         }
         bool used = false;

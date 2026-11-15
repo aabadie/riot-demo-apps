@@ -96,7 +96,7 @@ def collect(lib: ctypes.CDLL, games: int, frames: int,
             right = target if rng.random() > explore else int(rng.integers(-1, 2))
             point = lib.pong_step(ctypes.byref(game), left, right)
             if point:
-                lib.pong_serve(ctypes.byref(game), -point)
+                lib.pong_serve(ctypes.byref(game), point)
     return np.array(xs), np.array(ys) + 1   # classes 0, 1, 2
 
 
@@ -124,7 +124,7 @@ def match(lib: ctypes.CDLL, use_bot: bool, misses: int, seed: int,
         if point == 1:
             missed += 1
         if point:
-            lib.pong_serve(ctypes.byref(game), -point)
+            lib.pong_serve(ctypes.byref(game), point)
     return returned / max(missed, 1)
 
 

@@ -388,17 +388,22 @@ static void _flash_rows(const int *rows, int count)
     }
 }
 
-/* Place the piece, clear the full rows and update the score */
-static void _lock(void)
+/* Place the piece, clear the full rows and update the score. Return false
+   when a part of the piece stays above the board: game over */
+static bool _lock(void)
 {
     int cells[4][2];
     int full[4];
     int count = 0;
+    bool inside = true;
 
     _piece_cells(&_cur, cells);
     for (int i = 0; i < 4; i++) {
         if (cells[i][1] >= 0) {
             _board[cells[i][1]][cells[i][0]] = (uint8_t)(_cur.type + 1);
+        }
+        else {
+            inside = false;
         }
     }
 
@@ -417,7 +422,7 @@ static void _lock(void)
 
     if (count == 0) {
         tone_beep(NOTE_C4, 25);
-        return;
+        return inside;
     }
 
     tone_effect(count == 4 ? _sfx_four : _sfx_clear,
@@ -442,6 +447,7 @@ static void _lock(void)
         tone_effect(_sfx_level, ARRAY_SIZE(_sfx_level));
     }
     _draw_stats();
+    return inside;
 }
 
 static void _wait_start(void)
@@ -540,6 +546,7 @@ static void _play(void)
     int lock = 0;
     int lock_resets = 0;
     int move_timer = 0;
+    int last_dir = 0;
     int drop_timer = 0;
     uint32_t last = ztimer_now(ZTIMER_MSEC);
 
@@ -563,8 +570,18 @@ static void _play(void)
         }
 
         /* left and right, with auto repeat */
+        /* both held: the last one pressed */
+        if (_buttons.pressed & BTN_LEFT) {
+            last_dir = -1;
+        }
+        if (_buttons.pressed & BTN_RIGHT) {
+            last_dir = 1;
+        }
         int dir = 0;
-        if (_buttons.held & BTN_LEFT) {
+        if ((_buttons.held & (BTN_LEFT | BTN_RIGHT)) == (BTN_LEFT | BTN_RIGHT)) {
+            dir = last_dir;
+        }
+        else if (_buttons.held & BTN_LEFT) {
             dir = -1;
         }
         else if (_buttons.held & BTN_RIGHT) {
@@ -624,13 +641,13 @@ static void _play(void)
             }
             lock += TICK_MS;
             if (lock >= LOCK_MS) {
-                _lock();
+                bool inside = _lock();
                 _invalidate();
                 lock = 0;
                 lock_resets = 0;
                 gravity = 0;
                 _draw_stats();
-                if (!_spawn()) {
+                if (!inside || !_spawn()) {
                     _render();
                     return;
                 }

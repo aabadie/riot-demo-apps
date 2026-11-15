@@ -295,7 +295,7 @@ int main(void)
     _big = gfx_width() >= 200;
     _fx = (gfx_width() - PONG_W) / 2;
     _fy = _big ? 36 : gfx_height() - PONG_H;
-    _level = 1;
+    _level = 0;
     puts("Bot Brain");
 
     while (1) {

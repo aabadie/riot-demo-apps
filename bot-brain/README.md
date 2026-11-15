@@ -34,8 +34,9 @@ The default board is `adafruit-pybadge`.
 - After the export, the network of `model.h` plays against the scripted
   player in C. It does what the scripted player would do in about 90% of
   the frames, which makes it beatable: it returns about 7 balls per miss
-  at the EASY and MEDIUM speeds and about 30 at HARD, where the scripted
-  player itself returns 15, 35 and thousands.
+  at the EASY and MEDIUM speeds and about 15 at HARD, where the scripted
+  player itself returns 10, 30 and thousands. As on the board, the ball
+  is served towards the side that lost the point.
 
 ## Training
 
