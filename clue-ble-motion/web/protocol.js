@@ -66,16 +66,6 @@ export function toScene([w, x, y, z]) {
   return [w, x, z, -y];
 }
 
-/** Column major 4x4 rotation matrix of a unit quaternion w x y z. */
-export function quatToMat4([w, x, y, z]) {
-  return [
-    1 - 2 * (y * y + z * z), 2 * (x * y + w * z), 2 * (x * z - w * y), 0,
-    2 * (x * y - w * z), 1 - 2 * (x * x + z * z), 2 * (y * z + w * x), 0,
-    2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y), 0,
-    0, 0, 0, 1,
-  ];
-}
-
 /** Roll, pitch and yaw of a quaternion of the board, in degrees. */
 export function euler([w, x, y, z]) {
   const deg = 180 / Math.PI;

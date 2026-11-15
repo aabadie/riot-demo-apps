@@ -33,8 +33,14 @@ const EXPECTED = {
   },
 };
 
-// apply a column major 4x4 matrix to a vector
-const apply = (m, [x, y, z]) => [0, 1, 2].map((r) => m[r] * x + m[4 + r] * y + m[8 + r] * z);
+// rotate a vector by a quaternion w x y z: q v q*
+function rotate([w, x, y, z], [vx, vy, vz]) {
+  const tx = 2 * (y * vz - z * vy);
+  const ty = 2 * (z * vx - x * vz);
+  const tz = 2 * (x * vy - y * vx);
+  return [vx + w * tx + (y * tz - z * ty), vy + w * ty + (z * tx - x * tz),
+    vz + w * tz + (x * ty - y * tx)];
+}
 
 function checkScene() {
   const s = Math.SQRT1_2;
@@ -51,7 +57,7 @@ function checkScene() {
   ];
   let ok = true;
   for (const c of cases) {
-    const got = apply(P.quatToMat4(P.toScene(c.q)), c.v);
+    const got = rotate(P.toScene(c.q), c.v);
     const pass = nearAll(got, c.want, 1e-6);
     console.log(`# scene ${c.name}: ${pass ? "ok" : `FAIL ${got.map((x) => x.toFixed(3))}`}`);
     ok &&= pass;

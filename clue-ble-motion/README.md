@@ -15,9 +15,10 @@ Bluetooth. No app to install.
   the offsets of the magnetometer.
 - The screen of the board shows a spirit level and the angles.
 
-The teapot is built from curves in `web/teapot.js`: the body and the lid
-are profiles turned around their axis, the spout and the handle are tubes
-along Bezier curves. The page draws it with WebGL 2, no library.
+The teapot is the Utah teapot of Martin Newell, from the
+`TeapotGeometry` of three.js, drawn with a glazed material and its shadow.
+three.js r160 is copied in `web/vendor/three` (MIT, see its README), so the
+page needs nothing from the internet.
 
 ## Build and flash
 
