@@ -9,6 +9,7 @@
  */
 
 #include <math.h>
+#include <string.h>
 
 #include "bthome.h"
 
@@ -112,4 +113,35 @@ uint8_t bthome_button_update(bthome_button_t *b, bool held, uint32_t now)
     }
     b->held = held;
     return ev;
+}
+
+bool bthome_sched_update(bthome_sched_t *s, bthome_data_t *d,
+                         const uint8_t events[BTHOME_BUTTONS], bool changed,
+                         uint32_t now)
+{
+    bool event = false;
+
+    for (unsigned i = 0; i < BTHOME_BUTTONS; i++) {
+        event |= events[i] != BTHOME_EV_NONE;
+    }
+    s->pending |= changed;
+    if (event) {
+        /* only the new events, the earlier ones had their own packet id;
+           the other changes go out with them */
+        memcpy(d->button, events, sizeof(d->button));
+        s->on_air = true;
+        s->pending = false;
+        s->until = now + BTHOME_EVENT_MS;
+        return true;
+    }
+    if (s->on_air && (int32_t)(now - s->until) >= 0) {
+        s->on_air = false;
+        memset(d->button, 0, sizeof(d->button));
+        s->pending = true;
+    }
+    if (s->pending && !s->on_air) {
+        s->pending = false;
+        return true;
+    }
+    return false;
 }

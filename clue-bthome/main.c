@@ -45,7 +45,6 @@
 
 #define FRAME_MS        (20U)
 #define SENSORS_MS      (2000U)     /* new values, new packet id */
-#define EVENT_MS        (1500U)     /* time an event stays in the packets */
 #define ADV_ITVL_MS     (100U)
 #define COMBO_MS        (2000U)     /* A and B held: learn again */
 #define LEARN_S         (30U)
@@ -75,7 +74,7 @@ static struct {
 
 static bthome_data_t _data;
 static bthome_button_t _btn[BTHOME_BUTTONS];
-static uint32_t _event_until;
+static bthome_sched_t _sched;
 static char _name[16];
 
 static float _ring[RING][3];
@@ -365,6 +364,7 @@ int main(void)
     while (1) {
         uint32_t now = ztimer_now(ZTIMER_MSEC);
         bool changed = false;
+        uint8_t events[BTHOME_BUTTONS] = { BTHOME_EV_NONE };
 
         buttons_update(&buttons);
         bool both = (buttons.held & (BTN_A | BTN_B)) == (BTN_A | BTN_B);
@@ -386,19 +386,11 @@ int main(void)
         else {
             const uint8_t mask[BTHOME_BUTTONS] = { BTN_A, BTN_B };
             for (unsigned i = 0; i < BTHOME_BUTTONS; i++) {
-                uint8_t ev = bthome_button_update(&_btn[i], buttons.held & mask[i], now);
-                if (ev != BTHOME_EV_NONE) {
-                    _data.button[i] = ev;
-                    _event_until = now + EVENT_MS;
-                    printf("button %c %s\n", 'A' + i, _ev_names[ev]);
-                    changed = true;
+                events[i] = bthome_button_update(&_btn[i], buttons.held & mask[i], now);
+                if (events[i] != BTHOME_EV_NONE) {
+                    printf("button %c %s\n", 'A' + i, _ev_names[events[i]]);
                 }
             }
-        }
-        if (_event_until && (int32_t)(now - _event_until) >= 0) {
-            _event_until = 0;
-            memset(_data.button, 0, sizeof(_data.button));
-            changed = true;
         }
 
         if (_data.has_motion && _widx - done >= VIBE_HOP && _widx >= VIBE_WINDOW) {
@@ -416,9 +408,12 @@ int main(void)
             _read_sensors();
             changed = true;
         }
-        if (changed) {
+        bool send = bthome_sched_update(&_sched, &_data, events, changed, now);
+        if (send) {
             _data.packet_id++;
             _advertise();
+        }
+        if (send || changed) {
             _draw_values();
         }
         ztimer_sleep(ZTIMER_MSEC, FRAME_MS);

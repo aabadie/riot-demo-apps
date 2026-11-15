@@ -87,6 +87,37 @@ typedef struct {
  */
 uint8_t bthome_button_update(bthome_button_t *btn, bool held, uint32_t now_ms);
 
+/**
+ * @brief   When to send a new packet id
+ *
+ * A receiver takes the events of each new packet id as new events, so an
+ * event goes out with one packet id only, repeated by the advertising for
+ * BTHOME_EVENT_MS. The other changes wait until then.
+ */
+typedef struct {
+    bool on_air;                /**< an event is advertised */
+    bool pending;               /**< changes wait for the next packet id */
+    uint32_t until;             /**< end of the event, in ms */
+} bthome_sched_t;
+
+#define BTHOME_EVENT_MS         (1500U) /**< time an event is advertised */
+
+/**
+ * @brief   Take the new button events and the other changes
+ *
+ * @param[inout] sched      state
+ * @param[inout] data       data advertised, its buttons are set to @p events
+ *                          or cleared when the event is over
+ * @param[in]    events     BTHOME_EV_* of each button for this update
+ * @param[in]    changed    other values of @p data changed
+ * @param[in]    now_ms     current time
+ *
+ * @return  true when @p data must be advertised with a new packet id
+ */
+bool bthome_sched_update(bthome_sched_t *sched, bthome_data_t *data,
+                         const uint8_t events[BTHOME_BUTTONS], bool changed,
+                         uint32_t now_ms);
+
 #ifdef __cplusplus
 }
 #endif

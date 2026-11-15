@@ -20,6 +20,10 @@ The board broadcasts, in non-connectable BLE advertisements:
 
 Hold A and B together for 2 seconds to learn the normal vibrations again.
 
+A button event goes out with a packet id of its own, repeated for
+1.5 seconds: Home Assistant takes each new packet id as new events, so the
+sensor values that change in that time wait for the next packet id.
+
 The screen shows the values sent, the last button events and the packet
 id. The advertisement is also printed on the serial port, as `B <packet id>
 <service data in hex>`.

@@ -58,6 +58,45 @@ static void _sequence(const char *name, const unsigned *steps, unsigned n,
     }
 }
 
+/* 12 s of a running board, a frame every 20 ms: the sensors change every
+   2 s, the motion at 3.1 s, A is pressed at 1.9 s and held from 6 s, B is
+   pressed twice at 2.3 s. Prints each new packet id as "stream <hex>" for
+   decode.py, which must see each event once. */
+static void _stream(void)
+{
+    bthome_data_t d = {
+        .has_temp = true, .temp_c = 20.0f,
+        .has_motion = true,
+    };
+    bthome_button_t btn[BTHOME_BUTTONS] = { 0 };
+    bthome_sched_t sched = { 0 };
+
+    for (uint32_t now = 0; now <= 12000; now += 20) {
+        bool held[BTHOME_BUTTONS] = {
+            (now >= 1900 && now < 2000) || (now >= 6000 && now < 7500),
+            (now >= 2300 && now < 2400) || (now >= 2500 && now < 2600),
+        };
+        uint8_t events[BTHOME_BUTTONS];
+        bool changed = false;
+
+        for (unsigned i = 0; i < BTHOME_BUTTONS; i++) {
+            events[i] = bthome_button_update(&btn[i], held[i], now);
+        }
+        if (now > 0 && now % 2000 == 0) {
+            d.temp_c += 0.25f;
+            changed = true;
+        }
+        if (now == 3100) {
+            d.moving = true;
+            changed = true;
+        }
+        if (bthome_sched_update(&sched, &d, events, changed, now)) {
+            d.packet_id++;
+            _print("stream", &d);
+        }
+    }
+}
+
 int main(void)
 {
     bthome_data_t d = {
@@ -98,6 +137,8 @@ int main(void)
     const unsigned two[] = { 100, 600, 100, 600 };
     const uint8_t e_two[] = { BTHOME_EV_PRESS, BTHOME_EV_PRESS };
     _sequence("two presses", two, 4, e_two, 2);
+
+    _stream();
 
     printf("# %s\n", _failures ? "FAIL" : "PASS");
     return _failures ? 1 : 0;
