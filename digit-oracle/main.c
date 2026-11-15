@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "kernel_defines.h"
 #include "mutex.h"
 #include "thread.h"
 #include "ztimer.h"
@@ -42,6 +43,8 @@
 #define TILT_SPEED      (1.2f)      /* tilt, pixels per frame per g */
 #define TILT_DEADZONE   (0.08f)
 #define BRUSH           (1.6f)      /* brush radius in pixels */
+/* the PyBadge buttons come with a d-pad, the CLUE is tilted instead */
+#define HAVE_DPAD       IS_USED(MODULE_SN74HC165)
 
 #define COLOR_BG        GFX_RGB(10, 12, 30)
 #define COLOR_FRAME     GFX_RGB(60, 70, 120)
@@ -111,7 +114,7 @@ static void _layout(void)
         _ui = (layout_t){
             .scale = 3, .cx = 3, .cy = 14, .px = 92, .pw = w - 94,
             .digit_y = 16, .digit_scale = 5, .info_y = 54,
-            .bars_x = 92, .bars_y = 72, .bars_w = w - 94, .bars_h = 44,
+            .bars_x = 92, .bars_y = 86, .bars_w = w - 94, .bars_h = 30,
         };
     }
     _ui.bar_w = _ui.bars_w / DIGITS_CLASSES;
@@ -178,10 +181,17 @@ static void _text_in_panel(int y, const char *text, uint16_t color,
     gfx_text(x < _ui.px ? _ui.px : x, y, text, color, COLOR_BG, scale);
 }
 
+/* the long text when it fits in the panel, else the short one */
+static const char *_fit(const char *text, const char *short_text)
+{
+    return gfx_text_width(text, 1) <= _ui.pw ? text : short_text;
+}
+
 static void _show_result(int digit, const float proba[DIGITS_CLASSES],
                          int label, unsigned us)
 {
     char text[24];
+    char short_text[24];
     uint16_t color = COLOR_TEXT;
 
     if (label >= 0) {
@@ -193,13 +203,15 @@ static void _show_result(int digit, const float proba[DIGITS_CLASSES],
 
     unsigned line = _ui.info_y;
     if (digit >= 0) {
-        snprintf(text, sizeof(text), "%d%% %uUS",
-                 (int)(proba[digit] * 100 + 0.5f), us);
+        int percent = (int)(proba[digit] * 100 + 0.5f);
+        snprintf(text, sizeof(text), "%d%% %uUS", percent, us);
+        snprintf(short_text, sizeof(short_text), "%d%%", percent);
     }
     else {
         text[0] = '\0';
+        short_text[0] = '\0';
     }
-    _text_in_panel(line, text, COLOR_TEXT, 1);
+    _text_in_panel(line, _fit(text, short_text), COLOR_TEXT, 1);
     line += GFX_CHAR_H + 2;
 
     if (_from_pc) {
@@ -212,7 +224,8 @@ static void _show_result(int digit, const float proba[DIGITS_CLASSES],
         _text_in_panel(line, text, COLOR_DIM, 1);
         line += GFX_CHAR_H + 2;
         snprintf(text, sizeof(text), "SCORE %u/%u", _pc_correct, _pc_total);
-        _text_in_panel(line, text, COLOR_DIM, 1);
+        snprintf(short_text, sizeof(short_text), "%u/%u", _pc_correct, _pc_total);
+        _text_in_panel(line, _fit(text, short_text), COLOR_DIM, 1);
     }
     else {
         _text_in_panel(line, "DRAWN", COLOR_DIM, 1);
@@ -270,25 +283,26 @@ static bool _classify_drawing(bool submit)
     return true;
 }
 
-static void _handle_request(void)
+/* answer a request, true when it replaced the canvas */
+static bool _handle_request(void)
 {
     float proba[DIGITS_CLASSES];
     unsigned us;
 
     if (_malformed) {
         puts("E malformed line");
-        return;
+        return false;
     }
     if (_req.cmd == '?') {
         puts("I digit-oracle " PROTO_VERSION);
-        return;
+        return false;
     }
 
     const uint8_t *image = _req.image;
     if (_req.cmd == 'N') {
         if (digits_normalize(_req.image, _norm) != 0) {
             puts("E empty image");
-            return;
+            return false;
         }
         image = _norm;
     }
@@ -309,6 +323,7 @@ static void _handle_request(void)
     }
     _draw_canvas();
     _show_result(digit, proba, _req.label, us);
+    return true;
 }
 
 static void *_reader(void *arg)
@@ -439,9 +454,14 @@ int main(void)
     if (gfx_init() != 0) {
         puts("no display found");
     }
-    _have_motion = accel_init(50) != 0;
-    printf("Digit Oracle, %s\n", _have_motion ? "tilt to move the pen" :
-           "no motion sensor");
+    if (HAVE_DPAD) {
+        puts("Digit Oracle, the d-pad moves the pen");
+    }
+    else {
+        _have_motion = accel_init(50) != 0;
+        printf("Digit Oracle, %s\n", _have_motion ? "tilt to move the pen" :
+               "no motion sensor");
+    }
     puts("I digit-oracle " PROTO_VERSION);
 
     _layout();
@@ -455,10 +475,11 @@ int main(void)
         uint32_t now = ztimer_now(ZTIMER_MSEC);
 
         if (_pending) {
-            _handle_request();
+            if (_handle_request()) {
+                submitted = true;
+            }
             _pending = false;
             mutex_unlock(&_consumed);
-            submitted = true;
         }
 
         buttons_update(&_buttons);

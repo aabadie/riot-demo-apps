@@ -283,6 +283,28 @@ def cmd_listen(args: argparse.Namespace) -> int:
     return 0
 
 
+def _add_send_options(p: argparse.ArgumentParser, suppress_defaults: bool) -> None:
+    def default(value: object) -> object:
+        return argparse.SUPPRESS if suppress_defaults else value
+
+    p.add_argument("--count", type=int, default=default(1),
+                   help="number of digits to send (default 1)")
+    p.add_argument("--digit", type=int, choices=range(10), default=default(None),
+                   help="only send this digit")
+    p.add_argument("--index", type=int, default=default(None),
+                   help="send this digit of the test set (0 to 9999)")
+    p.add_argument("--seed", type=int, default=default(None), help="random seed")
+    p.add_argument("--delay", type=float, default=default(0.0),
+                   help="seconds between two digits")
+    p.add_argument("--normalize", action="store_true", default=default(False),
+                   help="shrink and move the digits, the board "
+                        "normalizes them back")
+    p.add_argument("--quiet", action="store_true", default=default(False),
+                   help="only print the summary")
+    p.add_argument("--min-accuracy", type=float, default=default(0.0),
+                   help="exit with an error below this accuracy")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -298,23 +320,11 @@ def main() -> int:
     send = sub.add_parser("send", help="send MNIST digits (default)")
     listen = sub.add_parser("listen", help="show the digits drawn on the board")
     listen.set_defaults(func=cmd_listen)
-    for p in (parser, send):
-        p.add_argument("--count", type=int, default=1,
-                       help="number of digits to send (default 1)")
-        p.add_argument("--digit", type=int, choices=range(10),
-                       help="only send this digit")
-        p.add_argument("--index", type=int,
-                       help="send this digit of the test set (0 to 9999)")
-        p.add_argument("--seed", type=int, help="random seed")
-        p.add_argument("--delay", type=float, default=0.0,
-                       help="seconds between two digits")
-        p.add_argument("--normalize", action="store_true",
-                       help="shrink and move the digits, the board "
-                            "normalizes them back")
-        p.add_argument("--quiet", action="store_true",
-                       help="only print the summary")
-        p.add_argument("--min-accuracy", type=float, default=0.0,
-                       help="exit with an error below this accuracy")
+    # the options of send are also accepted without it; in the subparser,
+    # their defaults are suppressed so that they do not overwrite the values
+    # given before "send"
+    _add_send_options(parser, suppress_defaults=False)
+    _add_send_options(send, suppress_defaults=True)
     send.set_defaults(func=cmd_send)
     parser.set_defaults(func=cmd_send)
 

@@ -70,7 +70,11 @@ size_t proto_format_result(char *buf, size_t len, int digit, unsigned us,
         buf[n++] = '\n';
         buf[n] = '\0';
     }
-    return n < 0 ? 0 : (size_t)n;
+    if (n < 0) {
+        return 0;
+    }
+    /* the length written, even when it was cut */
+    return (size_t)n < len ? (size_t)n : len - 1;
 }
 
 size_t proto_format_image(char *buf, const uint8_t *image)
