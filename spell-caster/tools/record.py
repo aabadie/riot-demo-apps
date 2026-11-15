@@ -35,8 +35,12 @@ def main() -> None:
                         print(f"board: {line}")
                     continue
                 fields = line.split()
-                label, n = fields[1], int(fields[2])
-                values = [int(v) for v in fields[3:]]
+                try:
+                    label, n = fields[1], int(fields[2])
+                    values = [int(v) for v in fields[3:]]
+                except (IndexError, ValueError):
+                    print("ignored a malformed recording")
+                    continue
                 if label not in LABELS or len(values) != n * 6:
                     print(f"ignored a malformed recording of {label}")
                     continue

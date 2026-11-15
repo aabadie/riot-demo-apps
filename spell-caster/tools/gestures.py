@@ -37,14 +37,14 @@ class FeatureLib:
     library."""
 
     def __init__(self, with_model: bool, build_dir: Path,
-                 model_dir: Path = APP_DIR) -> None:
+                 model_header: Path = APP_DIR / "model.h") -> None:
         sources = [APP_DIR / "gesture.c"]
         if with_model:
             sources.append(APP_DIR / "gesture_model.c")
         lib = build_dir / ("libgesture_model.so" if with_model
                            else "libgesture.so")
         subprocess.run(["cc", "-O2", "-shared", "-fPIC", "-Wall", "-Werror",
-                        f"-I{model_dir}", f"-I{APP_DIR}",
+                        f'-DMODEL_HEADER="{model_header}"', f"-I{APP_DIR}",
                         f"-I{emlearn_include()}",
                         *map(str, sources), "-o", str(lib), "-lm"],
                        check=True)
@@ -100,11 +100,17 @@ def load_dataset(directory: Path) -> tuple[list[Gesture], list[int]]:
     return gestures, labels
 
 
+def next_free(folder: Path, suffix: str) -> Path:
+    """The file after the highest numbered one, a deleted recording leaves a
+    gap but nothing is overwritten."""
+    numbers = [int(p.stem) for p in folder.glob(f"*{suffix}") if p.stem.isdigit()]
+    return folder / f"{max(numbers, default=-1) + 1:04d}{suffix}"
+
+
 def save_recording(directory: Path, label: str, values: list[int]) -> Path:
     folder = directory / label
     folder.mkdir(parents=True, exist_ok=True)
-    n = len(list(folder.glob("*.csv")))
-    path = folder / f"{n:04d}.csv"
+    path = next_free(folder, ".csv")
     with path.open("w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["ax", "ay", "az", "gx", "gy", "gz"])

@@ -18,6 +18,7 @@ player in its place.
 import argparse
 import ctypes
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -50,14 +51,14 @@ def emlearn_module():
     return emlearn
 
 
-def build(build_dir: Path, model_dir: Path | None) -> ctypes.CDLL:
+def build(build_dir: Path, model_header: Path | None) -> ctypes.CDLL:
     sources = [APP_DIR / "pong.c"]
     includes = [f"-I{APP_DIR}"]
-    if model_dir is not None:
+    if model_header is not None:
         sources.append(APP_DIR / "pong_bot.c")
-        includes = [f"-I{model_dir}"] + includes + \
+        includes = [f'-DMODEL_HEADER="{model_header}"'] + includes + \
             [f"-I{emlearn_module().includedir}"]
-    lib = build_dir / ("libpong_bot.so" if model_dir else "libpong.so")
+    lib = build_dir / ("libpong_bot.so" if model_header else "libpong.so")
     subprocess.run(["cc", "-O2", "-shared", "-fPIC", "-Wall", "-Werror",
                     *includes, *map(str, sources), "-o", str(lib), "-lm"],
                    check=True)
@@ -68,7 +69,7 @@ def build(build_dir: Path, model_dir: Path | None) -> ctypes.CDLL:
     dll.pong_expert.argtypes = [ctypes.POINTER(Pong), ctypes.c_int]
     dll.pong_features.argtypes = [ctypes.POINTER(Pong),
                                   ctypes.POINTER(ctypes.c_float)]
-    if model_dir is not None:
+    if model_header is not None:
         dll.pong_bot.argtypes = [ctypes.POINTER(Pong),
                                  ctypes.POINTER(ctypes.c_float)]
     return dll
@@ -155,28 +156,33 @@ def main() -> int:
           f"{model.best_validation_score_:.1%} of the frames")
 
     emlearn = emlearn_module()
+    params = sum(w.size for w in model.coefs_) + sum(b.size for b in model.intercepts_)
+    worst = float("inf")
     with tempfile.TemporaryDirectory() as tmp:
+        # the new model is played first, it replaces the output only if it
+        # plays well enough
+        candidate = Path(tmp) / "model.h"
         cwd = os.getcwd()
         os.chdir(tmp)
         try:
-            emlearn.convert(model, method="inline").save(file=str(output),
+            emlearn.convert(model, method="inline").save(file=str(candidate),
                                                          name="pong_model")
         finally:
             os.chdir(cwd)
-    params = sum(w.size for w in model.coefs_) + sum(b.size for b in model.intercepts_)
-    print(f"wrote {output}: {params} parameters")
-
-    worst = float("inf")
-    with tempfile.TemporaryDirectory() as tmp:
-        lib = build(Path(tmp), output.parent)
+        lib = build(Path(tmp), candidate)
         for speed in (1.0, 1.3, 1.6):
             expert = match(lib, False, 30, 7, speed)
             bot = match(lib, True, 30, 7, speed)
             worst = min(worst, bot)
             print(f"bot speed {speed}: the network returns {bot:.1f} balls "
                   f"per miss, the scripted player {expert:.1f}")
-    return 0 if worst >= args.min_returns else 1
-
+        if worst < args.min_returns:
+            print(f"{output} not written: {worst:.1f} balls per miss, below "
+                  f"{args.min_returns}")
+            return 1
+        shutil.copyfile(candidate, output)
+    print(f"wrote {output}: {params} parameters")
+    return 0
 
 if __name__ == "__main__":
     sys.exit(main())

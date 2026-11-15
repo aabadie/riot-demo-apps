@@ -14,7 +14,11 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wunused-function"
-#include "model.h"
+/* the training tools build the C model with the model they just made */
+#ifndef MODEL_HEADER
+#define MODEL_HEADER "model.h"
+#endif
+#include MODEL_HEADER
 #pragma GCC diagnostic pop
 
 int pong_bot(const pong_t *game, float proba[PONG_ACTIONS])

@@ -42,7 +42,8 @@ works much better. With the venv at the top of the repository:
     make RIOTBASE=... flash
 
 `train.py` prints the accuracy on a quarter of the gestures kept for
-testing and the confusion matrix, then trains on all of them.
+testing, of the C model as on the board, and the confusion matrix, then
+trains on all of them. `model.h` is replaced only when the checks pass.
 
 ## How it works
 
@@ -56,8 +57,10 @@ testing and the confusion matrix, then trains on all of them.
   Below 45% of the votes, the spell fizzles.
 - `train.py` computes the features with `gesture.c` itself, through
   ctypes, so the features of the training are exactly the ones of the
-  board. After the export, it builds `model.h` with `gesture_model.c` and
-  checks that the C model and scikit-learn agree on every gesture.
+  board. After the export, it builds the new model with `gesture_model.c`
+  and checks that the C model and scikit-learn agree on at least 98% of
+  the gestures: emlearn votes with the class of each tree, scikit-learn
+  averages their probabilities, so a tie can go either way.
 - emlearn 0.21.1 truncates the thresholds of the trees to integers and
   compares with `<`, where scikit-learn compares with `<=`. The features
   are integers, so `train.py` sets each threshold to `floor(t) + 1` before

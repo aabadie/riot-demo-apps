@@ -31,16 +31,23 @@ def emlearn_include() -> str:
     return emlearn.includedir
 
 
+def next_free(folder: Path, suffix: str) -> Path:
+    """The file after the highest numbered one, a deleted recording leaves a
+    gap but nothing is overwritten."""
+    numbers = [int(p.stem) for p in folder.glob(f"*{suffix}") if p.stem.isdigit()]
+    return folder / f"{max(numbers, default=-1) + 1:04d}{suffix}"
+
+
 class SoundLib:
     """sound.c and sound_eml.c, with model.h or not, as a shared library."""
 
     def __init__(self, with_model: bool, build_dir: Path,
-                 model_dir: Path = APP_DIR) -> None:
+                 model_header: Path = APP_DIR / "model.h") -> None:
         sources = [APP_DIR / "sound.c", APP_DIR / "sound_eml.c"]
         defines = ["-DSOUND_HAVE_MODEL"] if with_model else []
         lib = build_dir / ("libsound_model.so" if with_model else "libsound.so")
         subprocess.run(["cc", "-O2", "-shared", "-fPIC", "-Wall", "-Werror",
-                        *defines, f"-I{model_dir}", f"-I{APP_DIR}",
+                        *defines, f'-DMODEL_HEADER="{model_header}"', f"-I{APP_DIR}",
                         f"-I{emlearn_include()}", *map(str, sources),
                         "-o", str(lib), "-lm"], check=True)
         self.lib = ctypes.CDLL(str(lib))

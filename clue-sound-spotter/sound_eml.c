@@ -20,7 +20,11 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #include "eml_fft.h"
 #ifdef SOUND_HAVE_MODEL
-#include "model.h"
+/* the training tools build the C model with the model they just made */
+#ifndef MODEL_HEADER
+#define MODEL_HEADER "model.h"
+#endif
+#include MODEL_HEADER
 #endif
 #pragma GCC diagnostic pop
 

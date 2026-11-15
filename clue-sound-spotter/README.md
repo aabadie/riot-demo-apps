@@ -52,7 +52,9 @@ events it recognizes.
 - A random forest of 20 trees classifies them, below 50% of the votes the
   sound is unknown.
 - `train.py` computes the features with `sound.c` itself through ctypes,
-  and checks that the exported model agrees with scikit-learn. The
+  and checks that the exported model agrees with scikit-learn (98% of the
+  sounds at least, ties are voted differently) and the accuracy of the C
+  model, before replacing `model.h`. The
   emlearn headers define non static functions, so all the emlearn code is
   in `sound_eml.c`. The thresholds of the trees get the same `floor(t) + 1`
   fix as in the Spell Caster, see its README.

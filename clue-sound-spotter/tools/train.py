@@ -15,6 +15,7 @@ every sound to check that the board and scikit-learn agree.
 import argparse
 import math
 import os
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -25,6 +26,11 @@ from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 
 from sounds import APP_DIR, LABELS, SoundLib, load_dataset, synthetic_dataset
+
+
+# the votes of emlearn and scikit-learn can differ on a tie, more than a few
+# differences is an export bug
+MIN_AGREEMENT = 0.98
 
 
 def export(model: RandomForestClassifier, output: Path) -> None:
@@ -96,25 +102,39 @@ def main() -> int:
     model = RandomForestClassifier(n_estimators=args.trees,
                                    max_depth=args.depth, random_state=1)
     model.fit(x_train, y_train)
-    accuracy = model.score(x_test, y_test)
-    print(f"test accuracy {accuracy:.3f}")
+    with tempfile.TemporaryDirectory() as tmp:
+        # the accuracy of the C model, the one of the board: emlearn votes
+        # with the classes of the leaves, scikit-learn averages probabilities
+        header = Path(tmp) / "model.h"
+        export(model, header)
+        lib = SoundLib(with_model=True, build_dir=Path(tmp), model_header=header)
+        board_test = np.array([lib.classify(f) for f in x_test])
+    accuracy = float(np.mean(board_test == y_test))
+    print(f"test accuracy {accuracy:.3f} on the board, "
+          f"{model.score(x_test, y_test):.3f} in scikit-learn")
     print("confusion matrix (rows: sound, columns: prediction)")
     print("         " + " ".join(f"{n:>7}" for n in LABELS))
-    for name, row in zip(LABELS, confusion_matrix(y_test, model.predict(x_test))):
+    for name, row in zip(LABELS, confusion_matrix(y_test, board_test)):
         print(f"{name:>8} " + " ".join(f"{v:7d}" for v in row))
 
+    # the final model learns from all the sounds, it replaces the output
+    # only if the checks pass
     model.fit(x, y)
-    export(model, args.output.resolve())
     nodes = sum(e.tree_.node_count for e in model.estimators_)
-    print(f"wrote {args.output}: {args.trees} trees, {nodes} nodes")
-
     with tempfile.TemporaryDirectory() as tmp:
-        lib = SoundLib(with_model=True, build_dir=Path(tmp),
-                       model_dir=args.output.resolve().parent)
+        header = Path(tmp) / "model.h"
+        export(model, header)
+        lib = SoundLib(with_model=True, build_dir=Path(tmp), model_header=header)
         board = np.array([lib.classify(f) for f in x])
-    agree = np.mean(board == model.predict(x))
-    print(f"the C model agrees with scikit-learn on {agree:.2%} of the sounds")
-    return 0 if agree == 1.0 and accuracy >= args.min_accuracy else 1
+        agree = np.mean(board == model.predict(x))
+        print(f"the C model agrees with scikit-learn on {agree:.2%} of the sounds")
+        if accuracy < args.min_accuracy or agree < MIN_AGREEMENT:
+            print(f"{args.output} not written: accuracy below {args.min_accuracy} "
+                  f"or agreement below {MIN_AGREEMENT:.0%}")
+            return 1
+        shutil.copyfile(header, args.output)
+    print(f"wrote {args.output}: {args.trees} trees, {nodes} nodes")
+    return 0
 
 
 if __name__ == "__main__":

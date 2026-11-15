@@ -14,7 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
-from sounds import APP_DIR, FRAME, LABELS, save_wav
+from sounds import APP_DIR, FRAME, LABELS, next_free, save_wav
 
 
 def main() -> None:
@@ -41,15 +41,18 @@ def main() -> None:
                 if len(fields) != 4 or fields[1] not in LABELS:
                     print("ignored a malformed recording")
                     continue
-                label, n_frames = fields[1], int(fields[2])
-                data = bytes.fromhex(fields[3])
-                pcm = np.frombuffer(data, dtype="<i2")
+                try:
+                    label, n_frames = fields[1], int(fields[2])
+                    pcm = np.frombuffer(bytes.fromhex(fields[3]), dtype="<i2")
+                except ValueError:
+                    print("ignored a malformed recording")
+                    continue
                 if len(pcm) != n_frames * FRAME:
                     print(f"ignored a truncated recording of {label}")
                     continue
                 folder = args.data / label
                 folder.mkdir(parents=True, exist_ok=True)
-                path = folder / f"{counts[label]:04d}.wav"
+                path = next_free(folder, ".wav")
                 save_wav(path, pcm)
                 counts[label] += 1
                 print(f"saved {path} ({n_frames * FRAME / 16000:.2f} s), " +

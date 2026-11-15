@@ -15,7 +15,11 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
-#include "model.h"
+/* the training tools build the C model with the model they just made */
+#ifndef MODEL_HEADER
+#define MODEL_HEADER "model.h"
+#endif
+#include MODEL_HEADER
 #pragma GCC diagnostic pop
 
 int gesture_classify(const int16_t *features, float *proba)
