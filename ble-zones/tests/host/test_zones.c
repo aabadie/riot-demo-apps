@@ -186,10 +186,44 @@ static void _test_floor(void)
     _check("tags one after the other all followed", followed == 3 * ZONES_MAX_TAGS);
 }
 
+/* reports built by hand, straight to the locator */
+static void _test_slots(void)
+{
+    zones_locator_t loc;
+    int16_t f[ZONES_MAX_ANCHORS];
+    uint32_t now = 1000;
+
+    zones_locator_reset(&loc);
+    /* anchors that hear no tag take no column */
+    for (unsigned i = 0; i < 2 * ZONES_MAX_ANCHORS; i++) {
+        zones_report_t empty = { .anchor = (uint16_t)(0x1000 + i) };
+        zones_locator_report(&loc, &empty, now);
+    }
+    zones_report_t r = { .anchor = 0x2000, .count = 1, .tag = { 0x7000 }, .rssi = { -60 } };
+    zones_locator_report(&loc, &r, now);
+    _check("empty reports take no anchor column",
+           loc.n_anchors == 1 && zones_fingerprint(&loc, 0x7000, now, f) == 1);
+
+    /* a full table, tag 0x7000 silent for a while comes back in a report
+       after a new tag: the new tag must not take its slot */
+    zones_locator_reset(&loc);
+    for (unsigned t = 0; t < ZONES_MAX_TAGS; t++) {
+        zones_report_t one = { .anchor = 0x2000, .count = 1, .tag = { (uint16_t)(0x7000 + t) },
+                               .rssi = { -60 } };
+        zones_locator_report(&loc, &one, t == 0 ? now : now + ZONES_STALE_MS);
+    }
+    now += 2 * ZONES_STALE_MS;
+    zones_report_t back = { .anchor = 0x2000, .count = 2, .tag = { 0x7100, 0x7000 },
+                            .rssi = { -70, -65 } };
+    zones_locator_report(&loc, &back, now);
+    _check("a returning tag keeps its slot", zones_fingerprint(&loc, 0x7000, now, f) == 1);
+}
+
 int main(void)
 {
     _test_adv();
     _test_floor();
+    _test_slots();
     puts(_failures ? "FAIL" : "PASS");
     return _failures ? 1 : 0;
 }

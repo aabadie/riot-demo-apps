@@ -178,12 +178,31 @@ void zones_locator_report(zones_locator_t *loc, const zones_report_t *r, uint32_
 {
     /* features keep the order the anchors were first heard in, so that the
        fingerprints learned stay valid when new anchors show up */
+    if (r->count == 0) {
+        /* an anchor that hears no tag gets no column yet: the nodes that
+           start as anchors and become tags would take them all */
+        return;
+    }
     int a = _index(loc->anchors, &loc->n_anchors, ZONES_MAX_ANCHORS, r->anchor, true);
 
     if (a < 0) {
         return;
     }
+    /* the tags known first, so that a new tag cannot take the slot of a
+       tag of the same report */
     for (unsigned i = 0; i < r->count; i++) {
+        unsigned n = loc->n_tags;
+        int t = _index(loc->tags, &n, ZONES_MAX_TAGS, r->tag[i], false);
+        if (t >= 0) {
+            loc->rssi[t][a] = r->rssi[i];
+            loc->heard_ms[t][a] = now;
+        }
+    }
+    for (unsigned i = 0; i < r->count; i++) {
+        unsigned n = loc->n_tags;
+        if (_index(loc->tags, &n, ZONES_MAX_TAGS, r->tag[i], false) >= 0) {
+            continue;
+        }
         int t = _index(loc->tags, &loc->n_tags, ZONES_MAX_TAGS, r->tag[i], true);
         if (t < 0) {
             t = _stale_tag(loc, now);

@@ -53,11 +53,16 @@ typedef enum {
 
 static const char *_role_names[] = { "off", "anchor", "tag" };
 
+/* _lock: role, anchor and locator, also taken by the scan callback of the
+   NimBLE host, so never held while printing; _model_lock: the model and the
+   teaching */
 static mutex_t _lock = MUTEX_INIT;
+static mutex_t _model_lock = MUTEX_INIT;
 static uint16_t _id;
 static role_t _role = ROLE_ANCHOR;
 static zones_anchor_t _anchor;
 static zones_locator_t _locator;
+static zones_locator_t _snapshot;
 static bool _verbose;
 static uint16_t _teach_tag;
 static unsigned _teach_zone, _teach_left;
@@ -120,22 +125,22 @@ static void _set_role(role_t role)
         zones_report_t empty = { .anchor = _id };
         _advertise(buf, zones_anchor_adv(buf, &empty), ANCHOR_ADV_MS);
     }
-    printf("role %s\n", _role_names[role]);
+    printf("role set to %s\n", _role_names[role]);
 }
 
-static void _locate(uint32_t now)
+static void _locate(const zones_locator_t *loc, uint32_t now)
 {
     int16_t f[ZONES_MAX_ANCHORS];
 
-    for (unsigned t = 0; t < _locator.n_tags; t++) {
-        uint16_t tag = _locator.tags[t];
-        int heard = zones_fingerprint(&_locator, tag, now, f);
+    for (unsigned t = 0; t < loc->n_tags; t++) {
+        uint16_t tag = loc->tags[t];
+        int heard = zones_fingerprint(loc, tag, now, f);
         if (heard <= 0) {
             continue;
         }
         if (_verbose) {
             printf("F %04x", tag);
-            for (unsigned a = 0; a < _locator.n_anchors; a++) {
+            for (unsigned a = 0; a < loc->n_anchors; a++) {
                 printf(" %d", f[a]);
             }
             puts("");
@@ -167,22 +172,30 @@ static void *_tick(void *arg)
 
     while (1) {
         ztimer_periodic_wakeup(ZTIMER_MSEC, &last, TICK_MS);
+        zones_report_t report = { .count = 0 };
+        uint32_t now = ztimer_now(ZTIMER_MSEC);
+
         mutex_lock(&_lock);
         if (_role == ROLE_ANCHOR) {
-            zones_report_t report;
             zones_anchor_report(&_anchor, _id, &report);
             size_t len = zones_anchor_adv(buf, &report);
             ble_gap_adv_set_data(buf, len);
-            if (_verbose && report.count) {
-                printf("A");
-                for (unsigned i = 0; i < report.count; i++) {
-                    printf(" %04x:%d", report.tag[i], report.rssi[i]);
-                }
-                puts("");
-            }
+            /* the locator does not hear its own advertisements */
+            zones_locator_report(&_locator, &report, now);
         }
-        _locate(ztimer_now(ZTIMER_MSEC));
+        _snapshot = _locator;
         mutex_unlock(&_lock);
+
+        if (_verbose && report.count) {
+            printf("A");
+            for (unsigned i = 0; i < report.count; i++) {
+                printf(" %04x:%d", report.tag[i], report.rssi[i]);
+            }
+            puts("");
+        }
+        mutex_lock(&_model_lock);
+        _locate(&_snapshot, now);
+        mutex_unlock(&_model_lock);
     }
     return NULL;
 }
@@ -213,11 +226,11 @@ static int _cmd_teach(int argc, char **argv)
         puts("invalid zone");
         return 1;
     }
-    mutex_lock(&_lock);
+    mutex_lock(&_model_lock);
     _teach_tag = (uint16_t)strtoul(argv[1], NULL, 16);
     _teach_zone = zone;
     _teach_left = argc == 4 ? (unsigned)atoi(argv[3]) : TEACH_S;
-    mutex_unlock(&_lock);
+    mutex_unlock(&_model_lock);
     printf("teaching zone %u with tag %04x\n", zone, _teach_tag);
     return 0;
 }
@@ -226,10 +239,12 @@ static int _cmd_forget(int argc, char **argv)
 {
     (void)argc;
     (void)argv;
-    mutex_lock(&_lock);
+    mutex_lock(&_model_lock);
     zones_model_reset();
-    zones_locator_reset(&_locator);
     _teach_left = 0;
+    mutex_unlock(&_model_lock);
+    mutex_lock(&_lock);
+    zones_locator_reset(&_locator);
     mutex_unlock(&_lock);
     puts("forgot the zones, the anchors and the tags");
     return 0;
@@ -239,21 +254,27 @@ static int _cmd_status(int argc, char **argv)
 {
     (void)argc;
     (void)argv;
+    static zones_locator_t loc;
     mutex_lock(&_lock);
-    printf("id %04x role %s, %u anchors:", _id, _role_names[_role], _locator.n_anchors);
-    for (unsigned a = 0; a < _locator.n_anchors; a++) {
-        printf(" %04x", _locator.anchors[a]);
+    role_t role = _role;
+    loc = _locator;
+    mutex_unlock(&_lock);
+
+    printf("id %04x role %s, %u anchors:", _id, _role_names[role], loc.n_anchors);
+    for (unsigned a = 0; a < loc.n_anchors; a++) {
+        printf(" %04x", loc.anchors[a]);
     }
-    printf("\n%u tags:", _locator.n_tags);
-    for (unsigned t = 0; t < _locator.n_tags; t++) {
-        printf(" %04x", _locator.tags[t]);
+    printf("\n%u tags:", loc.n_tags);
+    for (unsigned t = 0; t < loc.n_tags; t++) {
+        printf(" %04x", loc.tags[t]);
     }
     printf("\nfingerprints per zone:");
+    mutex_lock(&_model_lock);
     for (unsigned z = 0; z < ZONES_MAX_ZONES; z++) {
         printf(" %u", zones_model_count(z));
     }
+    mutex_unlock(&_model_lock);
     puts("");
-    mutex_unlock(&_lock);
     return 0;
 }
 

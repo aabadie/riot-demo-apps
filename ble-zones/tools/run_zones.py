@@ -124,18 +124,18 @@ def main() -> int:
     print("roles: the tags stay quiet until their turn")
     for n in nodes:
         if n.role != "anchor":
-            bed.command(n, "role off", "role off")
+            bed.command(n, "role off", "role set to off")
     bed.pump(3)
     bed.command(loc, "forget", "forgot")
     bed.pump(4)
     bed.command(loc, "status", "anchors")
 
     for n in [n for n in nodes if n.role == "train"]:
-        bed.command(n, "role tag", "role tag")
+        bed.command(n, "role tag", "role set to tag")
         bed.pump(3)
         bed.command(loc, f"teach {n.id} {n.zone} {args.teach}", "teaching")
         bed.pump(args.teach + 2)
-        bed.command(n, "role off", "role off")
+        bed.command(n, "role off", "role set to off")
         print(f"taught zone {n.zone} at {n.name}")
         bed.pump(1)
     bed.command(loc, "status", "fingerprints")
@@ -145,7 +145,7 @@ def main() -> int:
     for i in range(0, len(tests), args.batch):
         batch = tests[i:i + args.batch]
         for n in batch:
-            bed.command(n, "role tag", "role tag")
+            bed.command(n, "role tag", "role set to tag")
         bed.pump(3)
         start = len(loc.lines)
         bed.pump(args.test)
@@ -155,7 +155,7 @@ def main() -> int:
             if m and m[1] in ids:
                 results[ids[m[1]].name][int(m[2])] += 1
         for n in batch:
-            bed.command(n, "role off", "role off")
+            bed.command(n, "role off", "role set to off")
             got = results[n.name]
             print(f"{n.name} zone {n.zone}: located {dict(got)}")
         bed.pump(1)

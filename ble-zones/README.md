@@ -23,7 +23,8 @@ Every node is also a locator. It hears the reports of the anchors and
 keeps, for each tag, the latest signal strength measured by each anchor
 (-100 dBm when an anchor did not hear it for 3 seconds): the fingerprint
 of the tag, one number per anchor, in the order the anchors were first
-heard.
+heard. An anchor gets its place in the fingerprint once it hears a tag.
+A locator that is also an anchor uses its own measurements too.
 
 `teach <tag> <zone>` adds the next 15 fingerprints of a tag to the model,
 with that zone. Then, every second, the node gives the zone of each tag:
@@ -136,6 +137,10 @@ The first runs found a bug: the locator followed at most 6 tags and never
 freed their slots, so it ignored every tag after the sixth. The slot of a
 tag no anchor heard for 3 seconds is now reused (host test "tags one after
 the other").
+
+Since these runs, a locator that is an anchor also uses its own
+measurements, one more anchor in its fingerprints (dwm1001-21 was an anchor
+in Toulouse). This has not been run on IoT-LAB yet.
 
 Scanning and advertising at the same time works on the nRF52832 of the
 dwm1001 and nrf52dk. How many tag advertisements the anchors hear per
