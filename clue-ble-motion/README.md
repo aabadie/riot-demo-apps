@@ -63,7 +63,11 @@ No pairing: anyone near the board can connect to it.
   (the phone decides, the serial port prints what it chose).
 - The page always draws the last orientation received; the sequence number
   gives the rate of the updates shown on the page.
-- The quaternion turns the axes of the sensor into the earth axes, z up.
+- The sensor of the CLUE is turned by 180 degrees about the y axis of the
+  screen: the board negates its x and z values first (`_to_screen()` in
+  `main.c`), so the filter, the quaternion and the raw values use the axes
+  of the screen: x to the right, y to the top, z out of the screen.
+- The quaternion turns the axes of the screen into the earth axes, z up.
   The page maps them to its scene, y up: board x stays x, board z (out of
   the screen) becomes y, board y becomes -z (`toScene()` in
   `web/protocol.js`).
@@ -86,8 +90,9 @@ No pairing: anyone near the board can connect to it.
 
 ## Hardware notes
 
-Not run on hardware yet. The page was tried in headless Chrome, with
-"Try without a board" and with a simulated board. Things to check first:
+Connected to a CLUE in Chrome on Linux. The teapot was upside down with the
+screen up: the raw acceleration showed the sensor turned about y, fixed in
+`_to_screen()`. Things to check next:
 
 - the axes: tilting the board right should tilt the teapot right. If an
   axis is mirrored or swapped, change `toScene()` in `web/protocol.js`.

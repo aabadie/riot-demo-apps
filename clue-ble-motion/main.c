@@ -238,6 +238,16 @@ static void _notify(uint16_t handle, const uint8_t *data, size_t len)
     }
 }
 
+/* From the axes of the sensor to the axes of the screen (x to the right, y
+   to the top, z out of the screen): on the CLUE, the sensor is turned by
+   180 degrees about the y axis. Measured: the board tilted by 45 degrees,
+   screen facing up and to the viewer, reads y +0.72 g and z -0.69 g. */
+static void _to_screen(float v[3])
+{
+    v[0] = -v[0];
+    v[2] = -v[2];
+}
+
 /* the magnetic field in the axes of the accelerometer, centered on the
    extremes seen while the board turned (hard iron); false until the board
    turned enough */
@@ -298,6 +308,8 @@ static void *_sensor_thread(void *arg)
         if (!accel_read(g) || !gyro_read(dps)) {
             continue;
         }
+        _to_screen(g);
+        _to_screen(dps);
         if (_do_calibrate) {
             _do_calibrate = false;
             fusion_bias_start(&bias);
@@ -312,6 +324,7 @@ static void *_sensor_thread(void *arg)
         }
         if (_axes == 9 && count % MAG_EVERY == 0) {
             mag_ok = _read_mag(mag);
+            _to_screen(mag);
         }
         bool use_mag = _axes == 9 && mag_ok;
 
@@ -372,14 +385,16 @@ static void _draw_connection(void)
                       _conn != BLE_HS_CONN_HANDLE_NONE ? COLOR_GOOD : COLOR_DIM, COLOR_BG, 1);
 }
 
-/* the bubble of a spirit level: the dot moves with the tilt, 45 degrees
-   at the edges */
+/* the bubble of a spirit level: the dot moves to the raised side, 45
+   degrees at the edges. The pitch turns about the y axis of the screen,
+   negative when the B side rises: it moves the dot sideways. The roll turns
+   about the x axis, positive when the top rises: it moves the dot up. */
 static void _draw_bubble(float roll, float pitch)
 {
     static int old_x = -1, old_y = -1;
     const int half = (BUBBLE_SIZE - DOT) / 2;
-    int x = BUBBLE_X + half + (int)lroundf(fmaxf(-1, fminf(1, roll / 45)) * half);
-    int y = BUBBLE_Y + half + (int)lroundf(fmaxf(-1, fminf(1, pitch / 45)) * half);
+    int x = BUBBLE_X + half - (int)lroundf(fmaxf(-1, fminf(1, pitch / 45)) * half);
+    int y = BUBBLE_Y + half - (int)lroundf(fmaxf(-1, fminf(1, roll / 45)) * half);
 
     if (x == old_x && y == old_y) {
         return;
@@ -420,6 +435,7 @@ static void _draw_values(float roll, float pitch, float yaw, bool calibrating, b
 static void _ble_init(void)
 {
     int res = ble_gatts_count_cfg(_services);
+
     if (res == 0) {
         res = ble_gatts_add_svcs(_services);
     }
