@@ -13,7 +13,7 @@ and with BLE.
 | `pybadge-stackfall` | `adafruit-pybadge` | Stackfall: falling blocks puzzle with music        |
 | `pybadge-tiltmaze`  | `adafruit-pybadge` | Tilt Maze: roll a ball through random mazes        |
 
-And seven applications with machine learning, using emlearn, each with a
+And eight applications with machine learning, using emlearn, each with a
 README of its own:
 
 | Application          | Board        | What it does                                             |
@@ -25,6 +25,7 @@ README of its own:
 | `clue-sound-spotter` | `adafruit-clue` | Claps, snaps, whistles, knocks; record and train      |
 | `clue-color-sniffer` | `adafruit-clue` | Colors taught on the board, naive Bayes             |
 | `clue-voice-keyboard` | `adafruit-clue` | Spell with the NATO alphabet, types over USB HID   |
+| `disco-digit-draw`   | `stm32f723e-disco` | Draw a digit on the touch screen, recognized by the Digit Oracle network |
 
 And two applications for IEEE 802.15.4 nodes of the FIT IoT-LAB testbed
 (`iotlab-m3` by default, also `samr21-xpro` and `nrf52840dk`):
