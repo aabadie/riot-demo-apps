@@ -1,6 +1,6 @@
 # RIOT demo applications
 
-Small applications to show what RIOT can do: on two Adafruit boards with a
+Small AI generated applications to show what RIOT can do: on two Adafruit boards with a
 screen, the CLUE and the PyBadge, on the nodes of the FIT IoT-LAB testbed,
 and with BLE.
 
