@@ -69,7 +69,7 @@ them reset during the run, whose new statistics must reach the others.
 Build for the M3 nodes, then submit an experiment with a few nodes (the
 commands are to be run by you, not by the tools of this repository):
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch>
+    make
     iotlab-experiment submit -n tinyfl -d 20 \
         -l grenoble,m3,100-107,bin/iotlab-m3/radio-tinyfl.elf
     iotlab-experiment wait

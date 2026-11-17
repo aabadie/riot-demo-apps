@@ -4,7 +4,7 @@ Live spectrum, level meter and level history of the CLUE microphone, with lvgl v
 
 ## Usage
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> flash term
+    make flash term
 
 The default board is `adafruit-clue`.
 

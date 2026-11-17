@@ -4,7 +4,7 @@ Climate, light and compass pages fed by SAUL, with lvgl v9.
 
 ## Usage
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> flash term
+    make flash term
 
 The default board is `adafruit-clue`.
 

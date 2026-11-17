@@ -4,7 +4,7 @@ Keyword spotting taught on the board: teach four words, then saying one paints t
 
 ## Usage
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> flash term
+    make flash term
 
 The default board is `adafruit-clue`.
 

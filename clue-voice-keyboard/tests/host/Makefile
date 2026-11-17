@@ -1,5 +1,5 @@
 # Host test of the voice keyboard recognition, needs the emlearn headers
-EMLEARN ?= ../../../../RIOT-drivers/build/pkg/emlearn/emlearn
+EMLEARN ?= ../../../RIOT/build/pkg/emlearn/emlearn
 
 CFLAGS += -O2 -Wall -Wextra -Werror -Wno-unused-parameter -Wno-unused-function
 CFLAGS += -I../.. -I$(EMLEARN)

@@ -22,7 +22,7 @@ page needs nothing from the internet.
 
 ## Build and flash
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> flash
+    make flash
 
 The board advertises as `CLUE Motion`. Keep it still for 2 seconds after
 it starts: the gyroscope is calibrated (the screen says when).

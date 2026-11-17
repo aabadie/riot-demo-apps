@@ -24,7 +24,7 @@ On the page:
 
 ## Build and flash
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> flash
+    make flash
 
 The board advertises as `CLUE Dashboard`.
 

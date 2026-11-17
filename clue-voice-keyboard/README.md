@@ -36,13 +36,13 @@ checked yet). A store with another layout is ignored at start-up.
 
 ## Usage
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> flash
+    make flash
 
 The board appears as a USB keyboard and a USB serial port at the same
 time. A USB keyboard sends key positions, and the computer turns them into
 characters with its own layout. For a computer set to a French layout:
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> KEYMAP=azerty flash
+    make KEYMAP=azerty flash
 
 The device uses the testing USB IDs of RIOT (`USB_VID_TESTING`,
 `USB_PID_TESTING`); set `USB_VID` and `USB_PID` to use other ones.

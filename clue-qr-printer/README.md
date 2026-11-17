@@ -50,7 +50,7 @@ a code of 512 bytes takes about 10 s.
 
 ## Build and flash
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> flash term
+    make flash term
 
 ## Send a text
 
@@ -103,7 +103,7 @@ to the printer, checks the layout and the timing of the image and reads
 the codes back with zxing-cpp:
 
     .venv/bin/pip install zxing-cpp pillow
-    make BOARD=native64 RIOTBASE=<RIOT tree with the demo-apps branch>
+    make BOARD=native64
     .venv/bin/python tests/native/run.py
 
 ## Hardware notes

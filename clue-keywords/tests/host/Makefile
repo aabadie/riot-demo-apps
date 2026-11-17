@@ -1,5 +1,5 @@
 # Host test of the keyword spotter, needs the emlearn headers
-EMLEARN ?= ../../../../RIOT-drivers/build/pkg/emlearn/emlearn
+EMLEARN ?= ../../../RIOT/build/pkg/emlearn/emlearn
 
 CFLAGS += -O2 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -I../.. -I$(EMLEARN)
 

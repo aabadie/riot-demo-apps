@@ -10,8 +10,8 @@ First to 7 points wins. Win, and the bot gets faster: EASY, MEDIUM, HARD.
 
 ## Usage
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> flash
-    make RIOTBASE=<RIOT tree with the demo-apps branch> BOARD=adafruit-clue flash
+    make flash
+    make BOARD=adafruit-clue flash
 
 The default board is `adafruit-pybadge`.
 

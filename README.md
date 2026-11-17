@@ -62,9 +62,9 @@ CLUE, not the 160x128 one of the badge.
 
 ## RIOT tree
 
-The applications expect RIOT next to this directory (`../RIOT`), or in
-`RIOTBASE`. They need changes that are not upstream yet, all gathered on
-the `demo-apps` branch of RIOT, checked out in `../RIOT-drivers`:
+The applications build with the RIOT tree of the `RIOT` submodule, the
+`riot-demo-apps` branch of https://github.com/aabadie/RIOT. That branch is
+the master of RIOT plus the changes that are not upstream yet:
 
 - `pkg/lvgl: update to v9.6.0`, for `clue-soundbars`, `clue-keywords` and
   `clue-sensors`
@@ -78,10 +78,19 @@ the `demo-apps` branch of RIOT, checked out in `../RIOT-drivers`:
 - `cpu/samd5x: add a PDM driver on a SERCOM in SPI mode` and
   `boards/adafruit-pybadge: add the PDM microphone of the EdgeBadge`, for the
   microphone applications on the EdgeBadge
+- driver fixes for `apds99xx`, `lsm6dsxx` and `usbus/hid`, and the support
+  of the old Adafruit nRF52 bootloaders in `dist/tools/uf2`
 
-Build and flash with:
+Clone with the submodule, then build and flash:
 
-    make -C clue-soundbars RIOTBASE=$(pwd)/../RIOT-drivers flash term
+    git clone --recurse-submodules <url of this repository>
+    make -C clue-soundbars flash term
+
+In an existing clone, fetch the submodule with:
+
+    git submodule update --init
+
+Another RIOT tree can be used with `RIOTBASE=<path>`.
 
 `clue-meteor-lanes` also builds on master.
 
@@ -124,13 +133,13 @@ so they need a C compiler (`cc`).
 - The `periph_conf.h` of the board on master declares P0.00 as SCL of the
   first I2C bus, but P0.00 is the data pin of the PDM microphone, and
   `i2c_init()` leaves that TWIM enabled on the pin at boot. The
-  `demo-apps` branch removes that bus (the edge connector
+  `riot-demo-apps` branch removes that bus (the edge connector
   shares the bus of the sensors). With the old configuration, the
   microphone applications call `board_mic_prepare()`, which disables any
   I2C bus on the microphone pin before `pdm_init()`.
 - The speaker on P1.00 is driven as a GPIO, the board has no PWM
   configuration.
-- The `demo-apps` branch adds the configuration of the LSM6DS
+- The `riot-demo-apps` branch adds the configuration of the LSM6DS
   accelerometer and gyroscope (I2C address 0x6A).
 - The display runs with a 10 MHz SPI clock (8 MHz on the nRF52) instead of
   the default 5 MHz, see `Makefile.common`.
@@ -140,14 +149,15 @@ so they need a C compiler (`cc`).
 - The board documentation still says the display is not supported. It
   builds with `st7735` through `disp_dev`.
 - The bit of each button (`BUTTON_MASK_*` in the board.h of the
-  `demo-apps` branch) comes from the Adafruit Arcada library.
+  `riot-demo-apps` branch) comes from the Adafruit Arcada library.
   `tests/drivers/sn74hc165` prints the bits as the buttons are pressed, to
   check them.
 - The speaker is driven as a GPIO on its DAC pin (PA02), with the amplifier
   enabled on PA27.
 - The EdgeBadge has a PDM microphone on SERCOM3 (clock PA16, data PA18).
-  The SAMD51 has no PDM peripheral: the driver of the `demo-apps` branch
-  clocks the microphone as an SPI master and filters the bits in software.
+  The SAMD51 has no PDM peripheral: the driver of the `riot-demo-apps`
+  branch clocks the microphone as an SPI master and filters the bits in
+  software.
   The sample rate is the nearest one the SPI clock allows (16304 Hz for
   16 kHz); the applications use the rate returned by `pdm_init()`.
 

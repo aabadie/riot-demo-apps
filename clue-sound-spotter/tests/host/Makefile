@@ -4,7 +4,7 @@
 # untouched.
 PYTHON ?= $(abspath ../../../.venv/bin/python)
 OUT := $(CURDIR)/out
-EMLEARN ?= ../../../../RIOT-drivers/build/pkg/emlearn/emlearn
+EMLEARN ?= ../../../RIOT/build/pkg/emlearn/emlearn
 CFLAGS += -O2 -Wall -Wextra -Werror -I../.. -I$(EMLEARN)
 
 test: $(OUT)/test_detect

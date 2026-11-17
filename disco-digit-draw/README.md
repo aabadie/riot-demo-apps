@@ -13,7 +13,7 @@ probability when the finger lifts:
 
 ## Usage
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> flash term
+    make flash term
 
 The default board is `stm32f723e-disco`. To start a new drawing, tap
 CLEAR, press the blue user button, or touch the canvas again 2 seconds

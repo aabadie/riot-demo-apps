@@ -4,7 +4,7 @@ Roll a ball through random mazes by tilting the PyBadge.
 
 ## Usage
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> flash term
+    make flash term
 
 The default board is `adafruit-pybadge`.
 

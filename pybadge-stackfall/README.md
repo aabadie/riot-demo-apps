@@ -4,7 +4,7 @@ A falling blocks puzzle with an original tune.
 
 ## Usage
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> flash term
+    make flash term
 
 The default board is `adafruit-pybadge`.
 

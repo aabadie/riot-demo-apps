@@ -67,7 +67,7 @@ each other.
 Build, then submit an experiment with two M3 nodes next to each other
 (the commands are to be run by you, not by the tools of this repository):
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch>
+    make
     iotlab-experiment submit -n jam -d 20 \
         -l grenoble,m3,100+102,bin/iotlab-m3/radio-jam-detector.elf
     iotlab-experiment wait

@@ -59,7 +59,7 @@ Split it along x in 3 zones (x < 3 m, 3 to 10 m, above 10 m), with 5
 anchors per zone and the other nodes as tags, half of them to teach and
 half to test:
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> BOARD=dwm1001
+    make BOARD=dwm1001
     iotlab-experiment submit -n zones -d 60 -l toulouse,dwm1001,<nodes>,bin/dwm1001/ble-zones.elf
     iotlab-experiment wait
 

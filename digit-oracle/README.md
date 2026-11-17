@@ -11,8 +11,8 @@ Adafruit PyBadge. A small neural network (one hidden layer of 64 neurons,
 
 ## Usage
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> flash
-    make RIOTBASE=<RIOT tree with the demo-apps branch> BOARD=adafruit-pybadge flash
+    make flash
+    make BOARD=adafruit-pybadge flash
 
 The default board is `adafruit-clue`. The Python tools need the venv at the
 top of the repository, see its README. Then, from this directory:

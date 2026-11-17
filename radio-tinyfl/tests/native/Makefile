@@ -1,5 +1,5 @@
 # TinyFL on native nodes connected by the ZEP dispatcher of RIOT
-RIOTBASE ?= ../../../../RIOT-drivers
+RIOTBASE ?= ../../../RIOT
 DISPATCHER = $(RIOTBASE)/dist/tools/zep_dispatch/bin/zep_dispatch
 
 test: $(DISPATCHER)

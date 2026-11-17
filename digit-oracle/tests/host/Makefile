@@ -1,5 +1,5 @@
 # Host build of the digit classifier, needs the emlearn headers
-EMLEARN ?= ../../../../RIOT-drivers/build/pkg/emlearn/emlearn
+EMLEARN ?= ../../../RIOT/build/pkg/emlearn/emlearn
 PYTHON ?= $(abspath ../../../.venv/bin/python)
 
 CFLAGS += -O2 -Wall -Wextra -Werror -I../.. -I$(EMLEARN)
@@ -17,7 +17,7 @@ clean:
 .PHONY: test clean
 
 # The whole application built for native64, through its stdin and stdout
-RIOTBASE ?= $(abspath ../../../../RIOT-drivers)
+RIOTBASE ?= $(abspath ../../../RIOT)
 NATIVE_ELF = ../../bin/native64/digit-oracle.elf
 
 native:

@@ -30,7 +30,7 @@ id. The advertisement is also printed on the serial port, as `B <packet id>
 
 ## Build and flash
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> flash
+    make flash
 
 ## On the phone
 

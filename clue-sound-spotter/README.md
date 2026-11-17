@@ -12,7 +12,7 @@ CLUE. The board listens with its PDM microphone and recognizes:
 
 ## Usage
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> flash term
+    make flash term
 
 ## Controls
 

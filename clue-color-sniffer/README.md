@@ -8,7 +8,7 @@ piano.
 
 ## Usage
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> flash term
+    make flash term
 
 ## Controls
 

@@ -9,8 +9,8 @@ table to try it.
 
 ## Usage
 
-    make RIOTBASE=<RIOT tree with the demo-apps branch> flash term
-    make RIOTBASE=<RIOT tree with the demo-apps branch> BOARD=adafruit-pybadge flash term
+    make flash term
+    make BOARD=adafruit-pybadge flash term
 
 The default board is `adafruit-clue`.
 

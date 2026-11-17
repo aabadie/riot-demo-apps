@@ -3,9 +3,9 @@
 
 DEMO_APPS_BASE := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
-# Path to the RIOT tree. The lvgl applications need lvgl v9, use a RIOT tree
-# with the updated package, see the README.
-RIOTBASE ?= $(abspath $(DEMO_APPS_BASE)/../RIOT)
+# Path to the RIOT tree, the RIOT submodule by default: it has the changes
+# the applications need that are not upstream yet, see the README.
+RIOTBASE ?= $(DEMO_APPS_BASE)/RIOT
 
 EXTERNAL_MODULE_DIRS += $(DEMO_APPS_BASE)/modules
 
